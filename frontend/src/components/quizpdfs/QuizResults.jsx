@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Trophy, XCircle, CheckCircle, RotateCcw, Home, ChevronDown, ChevronUp, Clock, Target, Loader2, ArrowLeft, BookOpen } from 'lucide-react';
+import { 
+  Trophy, 
+  XCircle, 
+  CheckCircle, 
+  RotateCcw, 
+  ChevronDown, 
+  ChevronUp, 
+  Clock, 
+  Loader2, 
+  BookOpen,
+  Share2,
+  SkipForward,
+  Filter,
+  Sparkles
+} from 'lucide-react';
 
 const QuizResults = () => {
   const { id: quizId } = useParams();
@@ -9,9 +23,9 @@ const QuizResults = () => {
   const [results, setResults] = useState(location.state?.results || null);
   const [expandedQuestions, setExpandedQuestions] = useState({});
   const [loading, setLoading] = useState(!location.state?.results);
+  const [filterMode, setFilterMode] = useState('all'); // 'all', 'correct', 'incorrect', 'skipped'
 
   useEffect(() => {
-    // If no results in state, redirect to module2
     if (!location.state?.results) {
       navigate('/module2');
     }
@@ -31,240 +45,289 @@ const QuizResults = () => {
     return `${mins}m ${secs}s`;
   };
 
-  const getScoreColor = () => {
-    if (!results) return 'text-gray-600';
-    if (results.percentage >= 80) return 'text-green-600';
-    if (results.percentage >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+  const getEncouragement = () => {
+    if (!results) return '';
+    if (results.percentage >= 90) return 'Outstanding performance!';
+    if (results.percentage >= 80) return 'Excellent work!';
+    if (results.percentage >= 70) return 'Great job!';
+    if (results.percentage >= 60) return 'Good effort!';
+    return 'Keep practicing!';
   };
 
-  const getScoreBg = () => {
-    if (!results) return 'bg-gray-100';
-    if (results.percentage >= 80) return 'bg-green-100';
-    if (results.percentage >= 60) return 'bg-yellow-100';
-    return 'bg-red-100';
-  };
+  const skippedCount = results?.questions?.filter(q => q.userAnswer === -1).length || 0;
+  const incorrectCount = results ? (results.totalQuestions - results.score - skippedCount) : 0;
 
-  const getGrade = () => {
-    if (!results) return '-';
-    if (results.percentage >= 90) return 'A+';
-    if (results.percentage >= 80) return 'A';
-    if (results.percentage >= 70) return 'B';
-    if (results.percentage >= 60) return 'C';
-    if (results.percentage >= 50) return 'D';
-    return 'F';
-  };
+  const filteredQuestions = results?.questions?.filter(q => {
+    if (filterMode === 'all') return true;
+    if (filterMode === 'correct') return q.isCorrect;
+    if (filterMode === 'incorrect') return !q.isCorrect && q.userAnswer !== -1;
+    if (filterMode === 'skipped') return q.userAnswer === -1;
+    return true;
+  }) || [];
 
   if (loading || !results) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="flex items-center justify-center h-96">
-          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-400 to-amber-500 animate-pulse flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-white animate-spin" />
+          </div>
+          <span className="text-sm text-gray-500">Loading results...</span>
         </div>
       </div>
     );
   }
 
+  // Calculate circumference for progress ring
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (results.percentage / 100) * circumference;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-orange-100 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                <BookOpen className="w-5 h-5 text-white" />
+              <div className="p-2 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl shadow-lg">
+                <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">Quiz Results</h1>
-                <p className="text-xs text-slate-500">{results.passed ? 'Congratulations!' : 'Keep trying!'}</p>
-              </div>
+              <span className="font-bold text-gray-900">StudyAI</span>
             </div>
-            <button
-              onClick={() => navigate('/module2')}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </button>
+            
+            <nav className="hidden md:flex items-center gap-6">
+              <span className="text-sm font-medium text-orange-600">Quizzes</span>
+              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Flashcards</span>
+              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Mind Maps</span>
+              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Library</span>
+            </nav>
+            
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-medium text-sm">
+              U
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* Header with Score */}
-          <div className={`p-8 ${getScoreBg()}`}>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white shadow-lg mb-4">
-                {results.passed ? (
-                  <Trophy className={`w-10 h-10 ${getScoreColor()}`} />
-                ) : (
-                  <Target className={`w-10 h-10 ${getScoreColor()}`} />
-                )}
-              </div>
-              
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                {results.passed ? 'Congratulations!' : 'Keep Practicing!'}
-              </h2>
-              
-              <div className={`text-5xl font-bold ${getScoreColor()} mb-2`}>
-                {results.percentage}%
-              </div>
-              
-              <p className="text-gray-600">
-                You scored {results.score} out of {results.totalQuestions} questions
-              </p>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Title and Share */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Quiz Results</h1>
+            <p className="text-sm text-gray-500">{results.quizTitle || 'Quiz Complete'}</p>
+          </div>
+          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">
+            <Share2 className="w-4 h-4" />
+            Share Results
+          </button>
+        </div>
 
-              <div className="flex items-center justify-center gap-6 mt-4">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Clock className="w-5 h-5" />
-                  <span>{formatTime(results.timeTaken)}</span>
+        {/* Score Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-8 mb-6">
+          <div className="flex flex-col md:flex-row items-center gap-8">
+            {/* Score Circle */}
+            <div className="relative">
+              <svg className="w-44 h-44 transform -rotate-90">
+                <circle
+                  cx="88"
+                  cy="88"
+                  r={radius}
+                  stroke="#f1f5f9"
+                  strokeWidth="12"
+                  fill="none"
+                />
+                <circle
+                  cx="88"
+                  cy="88"
+                  r={radius}
+                  stroke="url(#gradient)"
+                  strokeWidth="12"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  className="transition-all duration-1000"
+                />
+                <defs>
+                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#f97316" />
+                    <stop offset="100%" stopColor="#f59e0b" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-4xl font-bold text-gray-900">{results.percentage}%</span>
+                <span className="text-sm text-gray-500 uppercase tracking-wide">Score</span>
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="flex-1 grid grid-cols-2 gap-4">
+              {/* Correct */}
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Correct</span>
+                  <CheckCircle className="w-5 h-5 text-green-500" />
                 </div>
-                <div className={`px-4 py-1 rounded-full font-bold text-lg ${getScoreBg()} ${getScoreColor()}`}>
-                  Grade: {getGrade()}
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-green-600">{results.score}</span>
+                  <span className="text-gray-400">/ {results.totalQuestions}</span>
                 </div>
+              </div>
+
+              {/* Incorrect */}
+              <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-xl p-4 border border-red-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Incorrect</span>
+                  <XCircle className="w-5 h-5 text-red-500" />
+                </div>
+                <span className="text-3xl font-bold text-red-600">{incorrectCount}</span>
+              </div>
+
+              {/* Skipped */}
+              <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-4 border border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Skipped</span>
+                  <SkipForward className="w-5 h-5 text-gray-400" />
+                </div>
+                <span className="text-3xl font-bold text-gray-600">{skippedCount}</span>
+              </div>
+
+              {/* Time Taken */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Time Taken</span>
+                  <Clock className="w-5 h-5 text-blue-500" />
+                </div>
+                <span className="text-3xl font-bold text-blue-600">{formatTime(results.timeTaken)}</span>
+                <p className="text-xs text-gray-400 mt-1">Avg: {formatTime(Math.round(results.timeTaken / results.totalQuestions * 1.5))} per question</p>
               </div>
             </div>
           </div>
 
-          {/* Stats Summary */}
-          <div className="grid grid-cols-3 gap-4 p-6 border-b border-gray-100">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                <span className="text-2xl font-bold text-green-600">{results.score}</span>
-              </div>
-              <p className="text-sm text-gray-500">Correct</p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <XCircle className="w-5 h-5 text-red-500" />
-                <span className="text-2xl font-bold text-red-600">
-                  {results.totalQuestions - results.score}
-                </span>
-              </div>
-              <p className="text-sm text-gray-500">Incorrect</p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <Target className="w-5 h-5 text-indigo-500" />
-                <span className="text-2xl font-bold text-indigo-600">{results.totalQuestions}</span>
-              </div>
-              <p className="text-sm text-gray-500">Total</p>
+          {/* Encouragement */}
+          <div className="mt-6 text-center">
+            <p className="text-lg font-medium text-gray-900">{getEncouragement()}</p>
+            <p className="text-sm text-gray-500">
+              You performed better than {Math.max(0, Math.round(results.percentage * 0.9))}% of participants
+            </p>
+          </div>
+        </div>
+
+        {/* Question Breakdown */}
+        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-orange-100 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">Question Breakdown</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setFilterMode('correct')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  filterMode === 'correct' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                All Correct
+              </button>
+              <button
+                onClick={() => setFilterMode(filterMode === 'all' ? 'incorrect' : 'all')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  filterMode !== 'all' && filterMode !== 'correct' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Filter className="w-3 h-3" />
+                Filter
+              </button>
             </div>
           </div>
-
-          {/* Question Review */}
-          <div className="p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Review Answers</h3>
-            
-            <div className="space-y-3">
-              {results.questions.map((question, index) => (
-                <div 
-                  key={index}
-                  className={`border rounded-xl overflow-hidden transition-all
-                    ${question.isCorrect ? 'border-green-200' : 'border-red-200'}`}
-                >
-                  <button
-                    onClick={() => toggleQuestion(index)}
-                    className={`w-full p-4 flex items-center gap-4 text-left
-                      ${question.isCorrect ? 'bg-green-50' : 'bg-red-50'}`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center
-                      ${question.isCorrect ? 'bg-green-500' : 'bg-red-500'}`}
-                    >
+          
+          <div className="divide-y divide-gray-100">
+            {filteredQuestions.map((question, idx) => {
+              const originalIndex = results.questions.indexOf(question);
+              const isSkipped = question.userAnswer === -1;
+              
+              return (
+                <div key={originalIndex} className="px-6 py-4">
+                  <div className="flex items-start gap-4">
+                    {/* Status Icon */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      question.isCorrect
+                        ? 'bg-green-100'
+                        : isSkipped
+                          ? 'bg-gray-100'
+                          : 'bg-red-100'
+                    }`}>
                       {question.isCorrect ? (
-                        <CheckCircle className="w-5 h-5 text-white" />
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      ) : isSkipped ? (
+                        <div className="w-2 h-2 rounded-full bg-gray-400" />
                       ) : (
-                        <XCircle className="w-5 h-5 text-white" />
+                        <XCircle className="w-5 h-5 text-red-600" />
                       )}
                     </div>
+                    
+                    {/* Question Content */}
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900">Question {index + 1}</p>
-                      <p className="text-sm text-gray-600 line-clamp-1">{question.question}</p>
-                    </div>
-                    {expandedQuestions[index] ? (
-                      <ChevronUp className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                    )}
-                  </button>
-                  
-                  {expandedQuestions[index] && (
-                    <div className="p-4 bg-white border-t border-gray-100">
-                      <p className="font-medium text-gray-900 mb-3">{question.question}</p>
-                      
-                      <div className="space-y-2 mb-4">
-                        {question.options.map((option, optIndex) => {
-                          const isCorrect = optIndex === question.correctAnswer;
-                          const isUserAnswer = optIndex === question.userAnswer;
-                          
-                          return (
-                            <div
-                              key={optIndex}
-                              className={`p-3 rounded-lg border flex items-center gap-3
-                                ${isCorrect 
-                                  ? 'bg-green-50 border-green-300' 
-                                  : isUserAnswer && !isCorrect
-                                    ? 'bg-red-50 border-red-300'
-                                    : 'bg-gray-50 border-gray-200'
-                                }`}
-                            >
-                              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                                ${isCorrect 
-                                  ? 'bg-green-500 text-white' 
-                                  : isUserAnswer && !isCorrect
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-gray-200 text-gray-600'
-                                }`}
-                              >
-                                {String.fromCharCode(65 + optIndex)}
-                              </span>
-                              <span className={`flex-1 ${isCorrect ? 'font-medium' : ''}`}>
-                                {option}
-                              </span>
-                              {isCorrect && (
-                                <CheckCircle className="w-5 h-5 text-green-500" />
-                              )}
-                              {isUserAnswer && !isCorrect && (
-                                <XCircle className="w-5 h-5 text-red-500" />
-                              )}
-                            </div>
-                          );
-                        })}
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-gray-900">Question {originalIndex + 1}</span>
+                        {question.category && (
+                          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">
+                            {question.category}
+                          </span>
+                        )}
                       </div>
+                      <p className="text-sm text-gray-600 mb-3">{question.question}</p>
                       
-                      {question.explanation && (
-                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <p className="text-sm font-medium text-blue-800 mb-1">Explanation:</p>
-                          <p className="text-sm text-blue-700">{question.explanation}</p>
+                      {/* Answers */}
+                      {isSkipped ? (
+                        <p className="text-sm text-gray-400 italic">You skipped this question.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {!question.isCorrect && (
+                            <div className="flex items-center gap-2 p-2 bg-red-50 rounded-lg border border-red-100">
+                              <XCircle className="w-4 h-4 text-red-500" />
+                              <span className="text-sm text-red-700">
+                                {question.options[question.userAnswer]}
+                              </span>
+                              <span className="ml-auto px-2 py-0.5 bg-red-100 text-red-600 rounded text-xs font-medium uppercase">
+                                Your Answer
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-100">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span className="text-sm text-green-700">
+                              {question.options[question.correctAnswer]}
+                            </span>
+                            <span className="ml-auto px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium uppercase">
+                              Correct Answer
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
+        </div>
 
-          {/* Actions */}
-          <div className="p-6 border-t border-gray-100 flex gap-4">
-            <button
-              onClick={() => navigate('/module2')}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
-            >
-              <Home className="w-5 h-5" />
-              Back to Study Tools
-            </button>
-            <button
-              onClick={() => navigate(`/module2/quiz/${quizId}`)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
-            >
-              <RotateCcw className="w-5 h-5" />
-              Try Again
-            </button>
-          </div>
+        {/* Actions */}
+        <div className="flex items-center justify-center gap-4 mt-8">
+          <button
+            onClick={() => navigate(`/module2/quiz/${quizId}`)}
+            className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+          >
+            <RotateCcw className="w-5 h-5" />
+            Retake Quiz
+          </button>
+          <button
+            onClick={() => navigate('/module2')}
+            className="flex items-center gap-2 px-8 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <BookOpen className="w-5 h-5" />
+            Back to Library
+          </button>
         </div>
       </main>
     </div>

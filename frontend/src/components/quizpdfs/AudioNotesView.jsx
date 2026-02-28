@@ -16,7 +16,6 @@ import {
   BookOpen,
   Clock,
   Sparkles,
-  Music2,
   Send,
   Bot,
   GripVertical
@@ -442,44 +441,74 @@ const AudioNotesView = () => {
       <style>{customStyles}</style>
       
       {/* Header */}
-      <header className="flex-shrink-0 px-6 py-3 bg-white/80 backdrop-blur-sm border-b border-orange-100 flex items-center justify-between shadow-sm">
-        <button
-          onClick={() => navigate('/module2')}
-          className="flex items-center gap-2 text-gray-500 hover:text-orange-500 text-sm transition-colors duration-200 group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
-          <span>Back</span>
-        </button>
-        
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center">
-            <Music2 className="w-4 h-4 text-white" />
+      <header className="flex-shrink-0 bg-white/80 backdrop-blur-sm border-b border-orange-100 sticky top-0 z-50">
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl shadow-lg">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-bold text-gray-900">StudyAI</span>
+            </div>
+            
+            <nav className="hidden md:flex items-center gap-6">
+              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Quizzes</span>
+              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Flashcards</span>
+              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Mind Maps</span>
+              <span className="text-sm font-medium text-orange-600">Audio Notes</span>
+            </nav>
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCopyScript}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition-all duration-200 text-sm"
+              >
+                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy Script'}</span>
+              </button>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-medium text-sm">
+                U
+              </div>
+            </div>
           </div>
-          <h1 className="text-sm font-semibold text-gray-800 truncate max-w-md">{audioNotes.title}</h1>
         </div>
-        
-        <button
-          onClick={handleCopyScript}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition-all duration-200 text-xs"
-        >
-          {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-          <span>{copied ? 'Copied!' : 'Copy'}</span>
-        </button>
       </header>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         
         {/* Left Sidebar */}
-        <div className="w-72 flex-shrink-0 bg-white/70 backdrop-blur-sm border-r border-orange-100 p-5 overflow-y-auto hidden lg:block">
-          {/* Info Card */}
-          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 mb-6 border border-orange-100">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center">
-                <Volume2 className="w-4 h-4 text-white" />
+        <div className="w-72 flex-shrink-0 bg-white/70 backdrop-blur-sm border-r border-orange-100 flex flex-col overflow-y-auto hidden lg:flex">
+          {/* Back Button */}
+          <div className="p-4 border-b border-orange-100">
+            <button
+              onClick={() => navigate('/module2')}
+              className="flex items-center gap-2 text-gray-500 hover:text-orange-600 text-sm transition-colors duration-200 group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
+              <span>Back to Library</span>
+            </button>
+          </div>
+          
+          {/* Active Audio */}
+          <div className="p-4 border-b border-orange-100">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Now Playing</h3>
+            <div className="p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center">
+                  <Volume2 className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{audioNotes.title}</p>
+                  <p className="text-xs text-gray-500">{formatTime(audioNotes.estimatedDuration)}</p>
+                </div>
               </div>
-              <span className="text-sm font-semibold text-gray-700">Audio Notes</span>
             </div>
+          </div>
+
+          {/* Info Card */}
+          <div className="p-4 border-b border-orange-100">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Details</h3>
             <div className="space-y-2 text-xs">
               <div className="flex items-center gap-2 text-gray-500">
                 <Clock className="w-3.5 h-3.5 text-orange-400" />
@@ -498,12 +527,12 @@ const AudioNotesView = () => {
 
           {/* Key Points */}
           {audioNotes.keyPoints?.length > 0 && (
-            <div>
+            <div className="p-4 flex-1">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-6 h-6 rounded-md bg-orange-100 flex items-center justify-center">
                   <BookOpen className="w-3.5 h-3.5 text-orange-500" />
                 </div>
-                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Key Points</span>
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Key Points</span>
               </div>
               <ul className="space-y-3">
                 {audioNotes.keyPoints.map((point, i) => (

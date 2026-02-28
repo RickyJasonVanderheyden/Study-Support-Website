@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Award, Target, Flame, BookOpen, RefreshCw } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { TrendingUp, Target, Flame, BookOpen, RefreshCw } from 'lucide-react';
 import API from '../../services/api';
 
 const ProgressStats = () => {

@@ -36,11 +36,16 @@ const PDFUpload = ({ onQuizGenerated }) => {
   }, []);
 
   const handleFile = (selectedFile) => {
-    const allowedTypes = ['.pdf', '.docx', '.doc', '.txt'];
+    const allowedTypes = ['.pdf', '.docx', '.doc', '.pptx', '.txt'];
     const extension = selectedFile.name.toLowerCase().slice(selectedFile.name.lastIndexOf('.'));
     
+    if (extension === '.ppt') {
+      toast.error('Legacy .ppt format not supported. Please save as .pptx');
+      return;
+    }
+    
     if (!allowedTypes.includes(extension)) {
-      toast.error('Invalid file type. Please upload PDF, DOCX, or TXT files.');
+      toast.error('Invalid file type. Please upload PDF, DOCX, PPTX, or TXT files.');
       return;
     }
 
@@ -197,7 +202,7 @@ const PDFUpload = ({ onQuizGenerated }) => {
       >
         <input
           type="file"
-          accept=".pdf,.docx,.doc,.txt"
+          accept=".pdf,.docx,.doc,.pptx,.txt"
           onChange={handleFileInput}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           disabled={loading}
