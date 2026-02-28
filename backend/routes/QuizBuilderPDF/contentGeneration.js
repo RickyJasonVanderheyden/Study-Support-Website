@@ -29,13 +29,15 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['.pdf', '.docx', '.doc', '.txt'];
+  const allowedTypes = ['.pdf', '.docx', '.doc', '.pptx', '.txt'];
   const ext = path.extname(file.originalname).toLowerCase();
   
-  if (allowedTypes.includes(ext)) {
+  if (ext === '.ppt') {
+    cb(new Error('Legacy .ppt format is not supported. Please save as .pptx (PowerPoint 2007+)'), false);
+  } else if (allowedTypes.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only PDF, DOCX, and TXT files are allowed.'), false);
+    cb(new Error('Invalid file type. Only PDF, DOCX, PPTX, and TXT files are allowed.'), false);
   }
 };
 
@@ -93,7 +95,6 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     } = req.body;
 
     // Extract text from the uploaded file
-    console.log('Extracting text from:', originalName);
     const content = await extractText(filePath, originalName);
     
     if (content.length < 100) {
@@ -103,7 +104,6 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     // Generate quiz using Gemini AI
-    console.log('Generating quiz with Gemini AI...');
     const quizData = await generateQuizFromContent(content, {
       numQuestions: parseInt(numQuestions),
       difficulty,
@@ -177,7 +177,6 @@ router.post('/text', authMiddleware, async (req, res) => {
     }
 
     // Generate quiz using Gemini AI
-    console.log('Generating quiz from text input...');
     const quizData = await generateQuizFromContent(content, {
       numQuestions: parseInt(numQuestions),
       difficulty,
@@ -286,7 +285,6 @@ router.post('/flashcards', upload.single('file'), async (req, res) => {
     } = req.body;
 
     // Extract text from the uploaded file
-    console.log('Extracting text from:', originalName);
     const content = await extractText(filePath, originalName);
     
     if (content.length < 100) {
@@ -296,7 +294,6 @@ router.post('/flashcards', upload.single('file'), async (req, res) => {
     }
 
     // Generate flashcards using Gemini AI
-    console.log('Generating flashcards with Gemini AI...');
     const flashcardData = await generateFlashcardsFromContent(content, {
       numCards: parseInt(numCards),
       difficulty,
@@ -367,7 +364,6 @@ router.post('/mindmap', upload.single('file'), async (req, res) => {
     } = req.body;
 
     // Extract text from the uploaded file
-    console.log('Extracting text from:', originalName);
     const content = await extractText(filePath, originalName);
     
     if (content.length < 100) {
@@ -377,7 +373,6 @@ router.post('/mindmap', upload.single('file'), async (req, res) => {
     }
 
     // Generate mind map using Gemini AI
-    console.log('Generating mind map with Gemini AI...');
     const mindMapData = await generateMindMapFromContent(content, {
       maxDepth: parseInt(maxDepth),
       subject
@@ -448,7 +443,6 @@ router.post('/audio', upload.single('file'), async (req, res) => {
     } = req.body;
 
     // Extract text from the uploaded file
-    console.log('Extracting text from:', originalName);
     const content = await extractText(filePath, originalName);
     
     if (content.length < 100) {
@@ -458,7 +452,6 @@ router.post('/audio', upload.single('file'), async (req, res) => {
     }
 
     // Generate audio notes using Gemini AI
-    console.log('Generating audio notes with Gemini AI...');
     const audioData = await generateAudioNotesFromContent(content, {
       style,
       duration,
@@ -654,6 +647,72 @@ Provide a clear, helpful answer based ONLY on the content above. If the answer c
   } catch (error) {
     console.error('Error with AI Q&A:', error);
     res.status(500).json({ error: 'Failed to get AI response' });
+  }
+});
+
+/**
+ * @route   DELETE /api/module2/generate/flashcards/:id
+ * @desc    Delete a flashcard set
+ * @access  Public (for testing)
+ */
+router.delete('/flashcards/:id', async (req, res) => {
+  try {
+    const flashcardSet = await FlashcardSet.findById(req.params.id);
+
+    if (!flashcardSet) {
+      return res.status(404).json({ error: 'Flashcard set not found' });
+    }
+
+    await FlashcardSet.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Flashcard set deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting flashcard set:', error);
+    res.status(500).json({ error: 'Failed to delete flashcard set' });
+  }
+});
+
+/**
+ * @route   DELETE /api/module2/generate/mindmaps/:id
+ * @desc    Delete a mind map
+ * @access  Public (for testing)
+ */
+router.delete('/mindmaps/:id', async (req, res) => {
+  try {
+    const mindMap = await MindMap.findById(req.params.id);
+
+    if (!mindMap) {
+      return res.status(404).json({ error: 'Mind map not found' });
+    }
+
+    await MindMap.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Mind map deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting mind map:', error);
+    res.status(500).json({ error: 'Failed to delete mind map' });
+  }
+});
+
+/**
+ * @route   DELETE /api/module2/generate/audio/:id
+ * @desc    Delete audio notes
+ * @access  Public (for testing)
+ */
+router.delete('/audio/:id', async (req, res) => {
+  try {
+    const audioNotes = await AudioNotes.findById(req.params.id);
+
+    if (!audioNotes) {
+      return res.status(404).json({ error: 'Audio notes not found' });
+    }
+
+    await AudioNotes.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Audio notes deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting audio notes:', error);
+    res.status(500).json({ error: 'Failed to delete audio notes' });
   }
 });
 

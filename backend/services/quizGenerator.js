@@ -16,7 +16,6 @@ async function generateQuizFromContent(content, options = {}) {
 
   // Wait for rate limit
   await rateLimiter.waitForRateLimit();
-  console.log('📊 Rate limit status:', rateLimiter.getStatus());
 
   // Truncate content if too long (Gemini has token limits)
   const maxContentLength = 30000;
@@ -107,7 +106,6 @@ The correctAnswer should be the index (0, 1, 2, or 3) of the correct option.`;
 async function summarizeContent(content) {
   // Wait for rate limit
   await rateLimiter.waitForRateLimit();
-  console.log('📊 Rate limit status:', rateLimiter.getStatus());
 
   const maxContentLength = 30000;
   const truncatedContent = content.length > maxContentLength 

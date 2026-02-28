@@ -16,7 +16,6 @@ async function generateFlashcardsFromContent(content, options = {}) {
 
   // Wait for rate limit
   await rateLimiter.waitForRateLimit();
-  console.log('📊 Rate limit status:', rateLimiter.getStatus());
 
   // Truncate content if too long
   const maxContentLength = 30000;
@@ -109,7 +108,6 @@ async function generateMindMapFromContent(content, options = {}) {
 
   // Wait for rate limit
   await rateLimiter.waitForRateLimit();
-  console.log('📊 Rate limit status:', rateLimiter.getStatus());
 
   // Truncate content if too long
   const maxContentLength = 30000;
@@ -222,7 +220,6 @@ async function generateAudioNotesFromContent(content, options = {}) {
 
   // Wait for rate limit
   await rateLimiter.waitForRateLimit();
-  console.log('📊 Rate limit status:', rateLimiter.getStatus());
 
   // Truncate content if too long
   const maxContentLength = 30000;

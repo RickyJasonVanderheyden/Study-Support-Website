@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
+const { getTextExtractor } = require('office-text-extractor');
 
 /**
  * Extract text from a PDF file
@@ -71,6 +72,33 @@ async function extractTextFromTXT(filePath) {
 }
 
 /**
+ * Extract text from a PowerPoint file (.pptx, .ppt)
+ * @param {string} filePath - Path to the PowerPoint file
+ * @returns {Promise<string>} - Extracted text content
+ */
+async function extractTextFromPPTX(filePath) {
+  try {
+    const extractor = getTextExtractor();
+    const text = await extractor.extractText({ input: filePath, type: 'file' });
+    
+    if (!text || text.trim().length === 0) {
+      throw new Error('No text content found in PowerPoint');
+    }
+    
+    // Clean up the extracted text
+    let cleanedText = text
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s*\n/g, '\n\n')
+      .trim();
+    
+    return cleanedText;
+  } catch (error) {
+    console.error('Error extracting text from PowerPoint:', error);
+    throw new Error(`Failed to extract text from PowerPoint: ${error.message}`);
+  }
+}
+
+/**
  * Extract text from a file based on its extension
  * @param {string} filePath - Path to the file
  * @param {string} originalName - Original file name with extension
@@ -85,10 +113,14 @@ async function extractText(filePath, originalName) {
     case '.docx':
     case '.doc':
       return extractTextFromDOCX(filePath);
+    case '.pptx':
+      return extractTextFromPPTX(filePath);
+    case '.ppt':
+      throw new Error('Legacy .ppt format is not supported. Please convert to .pptx (PowerPoint 2007 or later)');
     case '.txt':
       return extractTextFromTXT(filePath);
     default:
-      throw new Error(`Unsupported file type: ${ext}. Supported types: .pdf, .docx, .txt`);
+      throw new Error(`Unsupported file type: ${ext}. Supported types: .pdf, .docx, .pptx, .txt`);
   }
 }
 
@@ -110,6 +142,7 @@ module.exports = {
   extractText,
   extractTextFromPDF,
   extractTextFromDOCX,
+  extractTextFromPPTX,
   extractTextFromTXT,
   deleteTempFile
 };
