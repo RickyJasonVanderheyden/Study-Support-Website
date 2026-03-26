@@ -1556,7 +1556,7 @@ const Module2Page = () => {
       <footer className="border-t border-orange-100 mt-12 py-6 bg-white/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-gray-500">
-            © 2024 AI Study Tools. All rights reserved. Built for modern learners.
+            © 2026 AI Study Tools. All rights reserved. Built for modern learners.
           </p>
         </div>
       </footer>

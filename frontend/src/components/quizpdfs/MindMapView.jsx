@@ -23,28 +23,143 @@ import {
   BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactFlow, { 
+  Background, 
+  Controls, 
+  MiniMap, 
+  useNodesState, 
+  useEdgesState, 
+  Handle, 
+  Position,
+  MarkerType
+} from 'reactflow';
+import dagre from 'dagre';
+import 'reactflow/dist/style.css';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
+// Custom Node Component
+const CustomNode = ({ data }) => {
+  const { label, description, level, color } = data;
+  
+  return (
+    <motion.div 
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className={`px-4 py-2.5 rounded-xl border-2 shadow-xl ${color.bg} ${color.border} ${color.text} min-w-[150px] max-w-[250px]`}
+    >
+      <Handle type="target" position={Position.Top} className="!bg-indigo-300 !w-2 !h-2" />
+      <div className="text-sm font-black leading-tight mb-1">{label}</div>
+      {description && (
+        <div className="text-[10px] opacity-70 font-medium leading-relaxed">
+          {description}
+        </div>
+      )}
+      <Handle type="source" position={Position.Bottom} className="!bg-indigo-300 !w-2 !h-2" />
+    </motion.div>
+  );
+};
+
+const nodeTypes = {
+  custom: CustomNode,
+};
+
+// Layout Helper
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+const getLayoutedElements = (nodes, edges, direction = 'TB') => {
+  const isHorizontal = direction === 'LR';
+  dagreGraph.setGraph({ rankdir: direction });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: 250, height: 100 });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      targetPosition: isHorizontal ? Position.Left : Position.Top,
+      sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
+      position: {
+        x: nodeWithPosition.x - 125,
+        y: nodeWithPosition.y - 50,
+      },
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
+};
 const MindMapView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [mindMap, setMindMap] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [expandedNodes, setExpandedNodes] = useState(new Set());
-  const [zoom, setZoom] = useState(1);
+
+
+
   const [showSidebar, setShowSidebar] = useState(true);
+ 
+  // React Flow state
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const getNodeColor = (level) => {
+    const colors = [
+      { bg: 'bg-indigo-50', border: 'border-indigo-500', text: 'text-indigo-900', dot: 'bg-indigo-500' },
+      { bg: 'bg-teal-50', border: 'border-teal-500', text: 'text-teal-900', dot: 'bg-teal-500' },
+      { bg: 'bg-purple-50', border: 'border-purple-500', text: 'text-purple-900', dot: 'bg-purple-500' },
+      { bg: 'bg-emerald-50', border: 'border-emerald-500', text: 'text-emerald-900', dot: 'bg-emerald-500' },
+      { bg: 'bg-slate-50', border: 'border-slate-500', text: 'text-slate-900', dot: 'bg-slate-500' },
+      { bg: 'bg-blue-50', border: 'border-blue-500', text: 'text-blue-900', dot: 'bg-blue-500' },
+    ];
+    return colors[level % colors.length];
+  };
 
   const fetchMindMap = async () => {
     try {
       const response = await api.get(`/module2/generate/mindmaps/${id}`);
-      setMindMap(response.data);
-      const initialExpanded = new Set(
-        response.data.nodes
-          .filter(n => n.level === 0 || n.level === 1)
-          .map(n => n.id)
-      );
-      setExpandedNodes(initialExpanded);
+            const data = response.data;
+      setMindMap(data);
+
+      // Transform nodes and edges for React Flow
+      const initialNodes = data.nodes.map((node) => ({
+        id: node.id,
+        type: 'custom',
+        data: { 
+          label: node.label, 
+          description: node.description, 
+          level: node.level,
+          color: getNodeColor(node.level)
+        },
+        position: { x: 0, y: 0 }, // Position will be set by dagre
+      }));
+
+      const initialEdges = data.nodes
+        .filter((node) => node.parentId !== null)
+        .map((node) => ({
+          id: `e${node.parentId}-${node.id}`,
+          source: node.parentId,
+          target: node.id,
+          type: 'smoothstep',
+          animated: true,
+          style: { stroke: '#6366f1', strokeWidth: 2 },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#6366f1',
+          },
+        }));
+
+      const layouted = getLayoutedElements(initialNodes, initialEdges);
+      setNodes(layouted.nodes);
+      setEdges(layouted.edges);
     } catch (error) {
       console.error('Error fetching mind map:', error);
       toast.error('Failed to load mind map');
@@ -58,26 +173,11 @@ const MindMapView = () => {
     fetchMindMap();
   }, [id]);
 
-  const toggleNode = (nodeId) => {
-    const newExpanded = new Set(expandedNodes);
-    if (newExpanded.has(nodeId)) {
-      newExpanded.delete(nodeId);
-    } else {
-      newExpanded.add(nodeId);
-    }
-    setExpandedNodes(newExpanded);
+  const onLayout = (direction) => {
+    const layouted = getLayoutedElements(nodes, edges, direction);
+    setNodes([...layouted.nodes]);
+    setEdges([...layouted.edges]);
   };
-
-  const expandAll = () => {
-    setExpandedNodes(new Set(mindMap.nodes.map(n => n.id)));
-  };
-
-  const collapseAll = () => {
-    setExpandedNodes(new Set());
-  };
-
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
 
   const handleDownload = () => {
     if (!mindMap) return;
@@ -91,88 +191,7 @@ const MindMapView = () => {
     toast.success('Mind map exported as JSON');
   };
 
-  const getNodeColor = (level) => {
-    const colors = [
-      { bg: 'bg-gradient-to-r from-indigo-100 to-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', dot: 'bg-indigo-500' },
-      { bg: 'bg-gradient-to-r from-teal-100 to-teal-50', border: 'border-teal-200', text: 'text-teal-800', dot: 'bg-teal-500' },
-      { bg: 'bg-gradient-to-r from-purple-100 to-purple-50', border: 'border-purple-200', text: 'text-purple-800', dot: 'bg-purple-500' },
-      { bg: 'bg-gradient-to-r from-emerald-100 to-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', dot: 'bg-emerald-500' },
-      { bg: 'bg-gradient-to-r from-slate-100 to-slate-50', border: 'border-slate-200', text: 'text-slate-800', dot: 'bg-slate-500' },
-      { bg: 'bg-gradient-to-r from-blue-100 to-blue-50', border: 'border-blue-200', text: 'text-blue-800', dot: 'bg-blue-500' },
-    ];
-    return colors[level % colors.length];
-  };
-
-  const buildTree = (nodes) => {
-    const rootNodes = nodes.filter(n => n.parentId === null || n.level === 0);
-    
-    const getChildren = (parentId) => {
-      return nodes.filter(n => n.parentId === parentId);
-    };
-
-    const renderNode = (node, depth = 0) => {
-      const children = getChildren(node.id);
-      const hasChildren = children.length > 0;
-      const isExpanded = expandedNodes.has(node.id);
-      const color = getNodeColor(depth);
-
-      return (
-        <div key={node.id} className="relative">
-          <motion.div 
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-start gap-2 py-1.5"
-          >
-            {hasChildren ? (
-              <button
-                onClick={() => toggleNode(node.id)}
-                className="p-1 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0 mt-1.5"
-              >
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-indigo-500" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-indigo-500" />
-                )}
-              </button>
-            ) : (
-              <div className="w-6 flex-shrink-0 flex items-center justify-center mt-2">
-                <div className={`w-2 h-2 rounded-full ${color.dot}`} />
-              </div>
-            )}
-
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              className={`px-4 py-2.5 rounded-xl border shadow-sm ${color.bg} ${color.border} ${color.text} cursor-pointer hover:shadow-md transition-all`}
-              onClick={() => hasChildren && toggleNode(node.id)}
-            >
-              <div className="text-sm font-bold">{node.label}</div>
-              {node.description && (
-                <div className="text-[11px] opacity-80 mt-1 font-normal max-w-xs leading-relaxed">
-                  {node.description}
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-
-          <AnimatePresence>
-            {hasChildren && isExpanded && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="ml-8 pl-4 border-l-2 border-indigo-100 overflow-hidden"
-              >
-                {children.map(child => renderNode(child, depth + 1))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      );
-    };
-
-    return rootNodes.map(node => renderNode(node, 0));
-  };
-
+ 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50 flex items-center justify-center">
@@ -327,32 +346,26 @@ const MindMapView = () => {
           </div>
 
           {/* Mind Map Visualization */}
-          <div className="flex-1 overflow-auto p-6 bg-slate-50/30">
-            <div className="bg-white rounded-3xl shadow-xl border border-indigo-100 p-8 min-h-full">
-              {/* Central Topic */}
-              <div className="mb-12 flex justify-center">
-                <motion.div 
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="inline-flex items-center gap-4 px-8 py-5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl text-white shadow-xl shadow-indigo-100 border-4 border-white"
-                >
-                  <div className="p-3 bg-white/20 rounded-2xl">
-                    <Network className="w-8 h-8" />
-                  </div>
-                  <span className="text-2xl font-black tracking-tight">{mindMap.centralTopic}</span>
-                </motion.div>
-              </div>
-
-              {/* Tree View */}
-              <div 
-                className="transition-transform origin-top flex flex-col items-center"
-                style={{ transform: `scale(${zoom})` }}
-              >
-                <div className="w-full max-w-4xl">
-                  {buildTree(mindMap.nodes)}
-                </div>
-              </div>
-            </div>
+         <div className="flex-1 bg-slate-50 relative">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              nodeTypes={nodeTypes}
+              fitView
+              minZoom={0.1}
+              maxZoom={2}
+            >
+              <Background color="#e2e8f0" gap={20} />
+              <Controls className="!bg-white !border-indigo-100 !shadow-lg !rounded-xl" />
+              <MiniMap 
+                nodeStrokeColor={(n) => n.data.color.border}
+                nodeColor={(n) => n.data.color.bg}
+                maskColor="rgba(99, 102, 241, 0.05)"
+                className="!bg-white !border-indigo-100 !shadow-lg !rounded-xl"
+              />
+            </ReactFlow>
           </div>
 
           {/* Bottom Toolbar */}
@@ -360,48 +373,32 @@ const MindMapView = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <button
-                  onClick={expandAll}
+                  onClick={() => onLayout('TB')}
                   className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-gray-700 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 rounded-xl transition-all"
                 >
                   <Maximize2 className="w-4 h-4" />
-                  Expand All
+                   Vertical Layout
                 </button>
                 <button
-                  onClick={collapseAll}
-                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-gray-700 bg-slate-100 hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-all"
+                                     onClick={() => onLayout('LR')}
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-gray-700 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 rounded-xl transition-all"
                 >
                   <Minimize2 className="w-4 h-4" />
-                  Collapse All
-                </button>
-              </div>
-
-              <div className="flex items-center bg-slate-100 rounded-2xl px-2 py-1 shadow-inner border border-slate-200">
-                <button
-                  onClick={handleZoomOut}
-                  className="p-2 text-gray-600 hover:bg-white hover:text-indigo-600 rounded-xl transition-all shadow-sm"
-                  title="Zoom Out"
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </button>
-                <span className="text-xs font-black text-indigo-600 w-16 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-                <button
-                  onClick={handleZoomIn}
-                  className="p-2 text-gray-600 hover:bg-white hover:text-indigo-600 rounded-xl transition-all shadow-sm"
-                  title="Zoom In"
-                >
-                  <ZoomIn className="w-4 h-4" />
+                Horizontal Layout
                 </button>
               </div>
 
               <button
                 onClick={() => {
-                  toast.success('Regenerating mind map...');
+                                    toast.success('Refreshing layout...');
+
                   fetchMindMap();
                 }}
                 className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:shadow-lg shadow-indigo-100 rounded-xl transition-all hover:scale-105"
               >
                 <RefreshCw className="w-4 h-4" />
-                Regenerate
+                                Reset View
+
               </button>
             </div>
           </div>
