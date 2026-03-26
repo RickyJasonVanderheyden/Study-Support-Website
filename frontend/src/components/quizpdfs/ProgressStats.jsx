@@ -25,9 +25,10 @@ const ProgressStats = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex items-center justify-center py-8">
-          <RefreshCw className="w-6 h-6 text-primary-600 animate-spin" />
+      <div className="bg-white rounded-2xl shadow-xl shadow-indigo-100/50 border border-indigo-100 p-8">
+        <div className="flex flex-col items-center justify-center py-10 gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-indigo-100 border-t-indigo-500 animate-spin" />
+          <p className="text-sm font-bold text-indigo-400 uppercase tracking-widest">Analyzing Data...</p>
         </div>
       </div>
     );
@@ -38,84 +39,118 @@ const ProgressStats = () => {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-6">Your Progress</h2>
+    <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/50 border border-indigo-100 p-8 overflow-hidden relative">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 opacity-50" />
       
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 bg-primary-50 rounded-xl">
-          <div className="flex items-center gap-2 mb-2">
-            <BookOpen className="w-5 h-5 text-primary-600" />
-            <span className="text-sm text-primary-600 font-medium">Quizzes</span>
-          </div>
-          <p className="text-2xl font-bold text-primary-700">{progress.totalQuizzes}</p>
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <Trophy className="w-6 h-6 text-indigo-500" />
+            Performance Metrics
+          </h2>
+          <button 
+            onClick={fetchProgress}
+            className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+            title="Refresh statistics"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
         </div>
         
-        <div className="p-4 bg-green-50 rounded-xl">
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="w-5 h-5 text-green-600" />
-            <span className="text-sm text-green-600 font-medium">Attempts</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100 group hover:shadow-md transition-all">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                <BookOpen className="w-4 h-4 text-indigo-600" />
+              </div>
+              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Quizzes</span>
+            </div>
+            <p className="text-3xl font-black text-indigo-700">{progress.totalQuizzes}</p>
           </div>
-          <p className="text-2xl font-bold text-green-700">{progress.totalAttempts}</p>
-        </div>
-        
-        <div className="p-4 bg-yellow-50 rounded-xl">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-yellow-600" />
-            <span className="text-sm text-yellow-600 font-medium">Avg Score</span>
+          
+          <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-100 group hover:shadow-md transition-all">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                <Target className="w-4 h-4 text-emerald-600" />
+              </div>
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Attempts</span>
+            </div>
+            <p className="text-3xl font-black text-emerald-700">{progress.totalAttempts}</p>
           </div>
-          <p className="text-2xl font-bold text-yellow-700">{progress.averageScore}%</p>
-        </div>
-        
-        <div className="p-4 bg-orange-50 rounded-xl">
-          <div className="flex items-center gap-2 mb-2">
-            <Flame className="w-5 h-5 text-orange-600" />
-            <span className="text-sm text-orange-600 font-medium">Streak</span>
+          
+          <div className="p-5 bg-purple-50 rounded-2xl border border-purple-100 group hover:shadow-md transition-all">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                <TrendingUp className="w-4 h-4 text-purple-600" />
+              </div>
+              <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">Avg Score</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <p className="text-3xl font-black text-purple-700">{progress.averageScore}</p>
+              <span className="text-sm font-bold text-purple-400">%</span>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-orange-700">{progress.streak} days</p>
+          
+          <div className="p-5 bg-rose-50 rounded-2xl border border-rose-100 group hover:shadow-md transition-all">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                <Flame className="w-4 h-4 text-rose-600" />
+              </div>
+              <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Streak</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <p className="text-3xl font-black text-rose-700">{progress.streak}</p>
+              <span className="text-sm font-bold text-rose-400">days</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Subject Performance */}
-      {progress.subjectPerformance && progress.subjectPerformance.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold text-gray-600 mb-3">Performance by Subject</h3>
-          <div className="space-y-3">
-            {progress.subjectPerformance.slice(0, 5).map((subject, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <span className="w-24 text-sm text-gray-600 truncate">{subject.subject}</span>
-                <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                  <div 
-                    className="bg-primary-600 h-full rounded-full transition-all"
-                    style={{ width: `${subject.averageScore}%` }}
-                  />
+        {/* Subject Performance */}
+        {progress.subjectPerformance && progress.subjectPerformance.length > 0 && (
+          <div className="mt-8 pt-8 border-t border-slate-100">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-5">Performance by Subject</h3>
+            <div className="space-y-4">
+              {progress.subjectPerformance.slice(0, 5).map((subject, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <span className="w-28 text-sm font-bold text-gray-700 truncate">{subject.subject}</span>
+                  <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+                    <div 
+                      className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-1000 shadow-sm"
+                      style={{ width: subject.averageScore + '%' }}
+                    />
+                  </div>
+                  <span className="text-sm font-black text-indigo-600 w-12 text-right tabular-nums">
+                    {subject.averageScore}%
+                  </span>
                 </div>
-                <span className="text-sm font-medium text-gray-700 w-12 text-right">
-                  {subject.averageScore}%
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Recent Activity */}
-      {progress.recentActivity && progress.recentActivity.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold text-gray-600 mb-3">Recent Activity</h3>
-          <div className="space-y-2">
-            {progress.recentActivity.slice(0, 5).map((activity, index) => (
-              <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <span className="text-sm text-gray-700 truncate flex-1">{activity.quizTitle}</span>
-                <span className={`text-sm font-medium px-2 py-1 rounded
-                  ${activity.score >= 60 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-                >
-                  {activity.score}%
-                </span>
-              </div>
-            ))}
+        {/* Recent Activity */}
+        {progress.recentActivity && progress.recentActivity.length > 0 && (
+          <div className="mt-8 pt-8 border-t border-slate-100">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Recent Milestones</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {progress.recentActivity.slice(0, 4).map((activity, index) => (
+                <div key={index} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200 hover:bg-white hover:border-indigo-100 hover:shadow-sm transition-all cursor-default">
+                  <span className="text-sm font-bold text-gray-700 truncate flex-1 pr-3">{activity.quizTitle}</span>
+                  <div className={`px-3 py-1 rounded-lg text-xs font-black border ${
+                    activity.score >= 80 
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                      : activity.score >= 60 
+                        ? 'bg-indigo-50 text-indigo-600 border-indigo-100' 
+                        : 'bg-rose-50 text-rose-600 border-rose-100'
+                  }`}>
+                    {activity.score}%
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
