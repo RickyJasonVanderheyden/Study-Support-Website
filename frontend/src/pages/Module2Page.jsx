@@ -29,7 +29,6 @@ import {
   BarChart3
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import BookLoader from '../components/common/BookLoader';
@@ -96,22 +95,12 @@ const Module2Page = () => {
   // Content lists
   const [activeTab, setActiveTab] = useState('generate');
   const [libraryFilter, setLibraryFilter] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [quizzes, setQuizzes] = useState([]);
   const [flashcardSets, setFlashcardSets] = useState([]);
   const [mindMaps, setMindMaps] = useState([]);
   const [audioNotes, setAudioNotes] = useState([]);
   const [loadingContent, setLoadingContent] = useState(false);
-
-  // Filtered content for library
-  const getFilteredContent = (content) => {
-    if (!searchQuery) return content;
-    return content.filter(item => 
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (item.subject && item.subject.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  };
 
   // Progress state
   const [progressData, setProgressData] = useState(null);
@@ -422,61 +411,42 @@ const Module2Page = () => {
 
   // Card colors for library
   const cardColors = [
-    'from-indigo-400 to-indigo-600',
-    'from-slate-500 to-slate-700',
-    'from-teal-400 to-teal-600',
-    'from-purple-400 to-purple-600',
-    'from-emerald-400 to-emerald-600',
-    'from-blue-400 to-blue-600'
+    'from-teal-400 to-cyan-500',
+    'from-blue-400 to-indigo-500',
+    'from-amber-400 to-orange-500',
+    'from-slate-400 to-slate-600',
+    'from-rose-400 to-pink-500',
+    'from-purple-400 to-violet-500'
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-indigo-100 sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-orange-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-                <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-200">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl shadow-lg shadow-orange-200">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-lg font-bold text-gray-900">AI Study Tools</span>
               </div>
 
               <nav className="hidden md:flex items-center gap-6">
-                <button 
-                  onClick={() => setActiveTab('generate')}
-                  className={`text-sm font-medium ${activeTab === 'generate' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
-                >
-                  Generate
-                </button>
-                <button 
-                  onClick={() => setActiveTab('library')}
-                  className={`text-sm font-medium ${activeTab === 'library' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
-                >
-                  Library
-                </button>
-                <button 
-                  onClick={() => setActiveTab('progress')}
-                  className={`text-sm font-medium ${activeTab === 'progress' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
-                >
-                  Progress
-                </button>
+                <Link to="/module2" className="text-sm font-medium text-orange-600">Dashboard</Link>
+                <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Features</span>
+                <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Pricing</span>
+                <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Docs</span>
               </nav>
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center bg-gray-100 rounded-lg px-3 py-2 gap-2 focus-within:ring-2 focus-within:ring-indigo-100 transition-all">
+              <div className="hidden md:flex items-center bg-gray-100 rounded-lg px-3 py-2 gap-2">
                 <Search className="w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search resources..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    if (activeTab !== 'library') setActiveTab('library');
-                  }}
                   className="bg-transparent text-sm outline-none w-40"
                 />
               </div>
@@ -508,20 +478,20 @@ const Module2Page = () => {
       </header>
 
       {/* Powered by badge + Tab Navigation */}
-      <div className="bg-white border-b border-indigo-100 shadow-sm">
+      <div className="bg-white border-b border-orange-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 py-3">
-                <Sparkles className="w-4 h-4 text-indigo-500" />
-                <span className="text-xs font-medium text-indigo-600 uppercase tracking-wide">Powered by Gemini AI</span>
+                <Sparkles className="w-4 h-4 text-orange-500" />
+                <span className="text-xs font-medium text-orange-600 uppercase tracking-wide">Powered by Gemini AI</span>
               </div>
 
               <div className="flex gap-1 ml-4">
                 <button
                   onClick={() => setActiveTab('generate')}
-                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'generate'
-                      ? 'border-indigo-500 text-indigo-600'
+                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'generate'
+                      ? 'border-orange-500 text-orange-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -529,8 +499,8 @@ const Module2Page = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('library')}
-                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'library'
-                      ? 'border-indigo-500 text-indigo-600'
+                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'library'
+                      ? 'border-orange-500 text-orange-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -538,8 +508,8 @@ const Module2Page = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('progress')}
-                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'progress'
-                      ? 'border-indigo-500 text-indigo-600'
+                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'progress'
+                      ? 'border-orange-500 text-orange-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -552,96 +522,62 @@ const Module2Page = () => {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <AnimatePresence mode="wait">
-          {activeTab === 'generate' && (
-            <motion.div
-              key="generate"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-6"
-            >
-              {/* Upload Section */}
-              <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-6">
-                {!file && !hasGeneratedContent ? (
-                  <div
-                    className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${dragActive
-                        ? 'border-indigo-400 bg-indigo-50'
-                        : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50'
-                      }`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                    onClick={() => document.getElementById('file-input').click()}
-                  >
-                    <input
-                      id="file-input"
-                      type="file"
-                      accept=".pdf,.docx,.pptx,.txt"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                    <div className="flex flex-col items-center">
-                      <div className="p-4 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl mb-4">
-                        <Cloud className="w-10 h-10 text-indigo-500" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Upload your study materials
-                      </h3>
-                      <p className="text-sm text-gray-500 mb-4">
-                        Drop PDF, DOCX, PPTX, or TXT files here (Max 10MB)
-                      </p>
-                      <button className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">
-                        Select Files
-                      </button>
+        {activeTab === 'generate' && (
+          <div className="space-y-6">
+            {/* Upload Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6">
+              {!file && !hasGeneratedContent ? (
+                <div
+                  className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${dragActive
+                      ? 'border-orange-400 bg-orange-50'
+                      : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50/50'
+                    }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById('file-input').click()}
+                >
+                  <input
+                    id="file-input"
+                    type="file"
+                    accept=".pdf,.docx,.pptx,.txt"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center">
+                    <div className="p-4 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl mb-4">
+                      <Cloud className="w-10 h-10 text-orange-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Upload your study materials
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Drop PDF, DOCX, PPTX, or TXT files here (Max 10MB)
+                    </p>
+                    <button className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">
+                      Select Files
+                    </button>
+                  </div>
+                </div>
+              ) : !file && hasGeneratedContent ? (
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                      <CheckCircle2 className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">{savedFileName || 'Previous document'}</p>
+                      <p className="text-xs text-orange-600">Content generated - view below or upload new file</p>
                     </div>
                   </div>
-                ) : !file && hasGeneratedContent ? (
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-lg shadow-sm">
-                        <CheckCircle2 className="w-5 h-5 text-indigo-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 text-sm">{savedFileName || 'Previous document'}</p>
-                        <p className="text-xs text-indigo-600">Content generated - view below or upload new file</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => document.getElementById('file-input-replace').click()}
-                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-white rounded-lg transition-colors"
-                      >
-                        Upload New
-                      </button>
-                      <button
-                        onClick={removeFile}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <input
-                      id="file-input-replace"
-                      type="file"
-                      accept=".pdf,.docx,.pptx,.txt"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-lg shadow-sm">
-                        <FileText className="w-5 h-5 text-indigo-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 text-sm">{file.name}</p>
-                        <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => document.getElementById('file-input-replace').click()}
+                      className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-white rounded-lg transition-colors"
+                    >
+                      Upload New
+                    </button>
                     <button
                       onClick={removeFile}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -649,127 +585,143 @@ const Module2Page = () => {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                )}
-
-                {/* Subject Option - inline */}
-                <div className="mt-4 flex items-center gap-4">
-                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Subject:</label>
                   <input
-                    type="text"
-                    placeholder="e.g. Biology, Economics (optional)"
-                    value={options.subject}
-                    onChange={(e) => setOptions(prev => ({ ...prev, subject: e.target.value }))}
-                    className="flex-1 max-w-md px-4 py-2 rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-sm"
+                    id="file-input-replace"
+                    type="file"
+                    accept=".pdf,.docx,.pptx,.txt"
+                    onChange={handleFileChange}
+                    className="hidden"
                   />
                 </div>
+              ) : (
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                      <FileText className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">{file.name}</p>
+                      <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={removeFile}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Subject Option - inline */}
+              <div className="mt-4 flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Subject:</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Biology, Economics (optional)"
+                  value={options.subject}
+                  onChange={(e) => setOptions(prev => ({ ...prev, subject: e.target.value }))}
+                  className="flex-1 max-w-md px-4 py-2 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Content Types Section */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Choose Content Type</h2>
+                <span className="px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-medium">
+                  4 MODULES AVAILABLE
+                </span>
               </div>
 
-              {/* Content Types Section */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900">Choose Content Type</h2>
-                  <span className="px-3 py-1 bg-indigo-100 text-indigo-600 rounded-full text-xs font-medium">
-                    4 MODULES AVAILABLE
-                  </span>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {contentTypes.map((type) => {
+                  const Icon = type.icon;
+                  const isGenerating = generating && generationType === type.id;
+                  const isGenerated = !!generatedContent[type.id];
+                  const generatedId = getGeneratedId(type.id);
+                  const canGenerate = !!file;
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {contentTypes.map((type, idx) => {
-                    const Icon = type.icon;
-                    const isGenerating = generating && generationType === type.id;
-                    const isGenerated = !!generatedContent[type.id];
-                    const generatedId = getGeneratedId(type.id);
-                    const canGenerate = !!file;
-
-                    return (
-                      <motion.div
-                        key={type.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        whileHover={{ y: -5, transition: { duration: 0.2 } }}
-                        className={`relative bg-white rounded-2xl border overflow-hidden transition-all hover:shadow-xl ${isGenerated ? 'border-green-200' : 'border-gray-100'
-                          }`}
-                      >
-                        <div className="p-5">
-                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${type.color} flex items-center justify-center mb-4 shadow-md shadow-indigo-100`}>
-                            {isGenerating ? (
-                              <Loader2 className="w-6 h-6 text-white animate-spin" />
-                            ) : (
-                              <Icon className="w-6 h-6 text-white" />
-                            )}
-                          </div>
-
-                          <h3 className="font-semibold text-gray-900 mb-1">{type.title}</h3>
-                          <p className="text-xs text-gray-500 leading-relaxed mb-4">{type.description}</p>
-
-                          {isGenerated && (
-                            <div className="flex items-center gap-1 mb-3 text-green-600">
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span className="text-xs font-medium">Generated</span>
-                            </div>
+                  return (
+                    <div
+                      key={type.id}
+                      className={`relative bg-white rounded-2xl border overflow-hidden transition-all hover:shadow-lg ${isGenerated ? 'border-green-200' : 'border-gray-100'
+                        }`}
+                    >
+                      <div className="p-5">
+                        <div className={`w-12 h-12 rounded-xl ${type.bgColor} flex items-center justify-center mb-4`}>
+                          {isGenerating ? (
+                            <Loader2 className="w-6 h-6 text-white animate-spin" />
+                          ) : (
+                            <Icon className="w-6 h-6 text-white" />
                           )}
-
-                          <div className="flex items-center gap-2">
-                            {isGenerated ? (
-                              <>
-                                <button
-                                  onClick={() => handleGenerateClick(type.id)}
-                                  disabled={generating || !canGenerate}
-                                  className={`flex-1 py-2.5 bg-gradient-to-r ${type.color} text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 shadow-sm`}
-                                >
-                                  Regenerate
-                                </button>
-                                <button
-                                  onClick={() => viewContent(type.id, generatedId)}
-                                  className="p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => handleGenerateClick(type.id)}
-                                  disabled={generating || !canGenerate}
-                                  className={`flex-1 py-2.5 bg-gradient-to-r ${type.color} text-white rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shadow-sm`}
-                                >
-                                  {isGenerating ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                      Generating...
-                                    </span>
-                                  ) : (
-                                    'Generate'
-                                  )}
-                                </button>
-                                <button
-                                  disabled
-                                  className="p-2.5 bg-gray-50 text-gray-300 rounded-xl cursor-not-allowed"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
-                          </div>
                         </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            </motion.div>
-          )}
 
-          {activeTab === 'library' && (
-            <motion.div
-              key="library"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-6"
-            >
+                        <h3 className="font-semibold text-gray-900 mb-1">{type.title}</h3>
+                        <p className="text-xs text-gray-500 leading-relaxed mb-4">{type.description}</p>
+
+                        {isGenerated && (
+                          <div className="flex items-center gap-1 mb-3 text-green-600">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span className="text-xs font-medium">Generated</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          {isGenerated ? (
+                            <>
+                              <button
+                                onClick={() => handleGenerateClick(type.id)}
+                                disabled={generating || !canGenerate}
+                                className={`flex-1 py-2.5 bg-gradient-to-r ${type.color} text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50`}
+                              >
+                                Regenerate
+                              </button>
+                              <button
+                                onClick={() => viewContent(type.id, generatedId)}
+                                className="p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleGenerateClick(type.id)}
+                                disabled={generating || !canGenerate}
+                                className={`flex-1 py-2.5 bg-gradient-to-r ${type.color} text-white rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity`}
+                              >
+                                {isGenerating ? (
+                                  <span className="flex items-center justify-center gap-2">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Generating...
+                                  </span>
+                                ) : (
+                                  'Generate'
+                                )}
+                              </button>
+                              <button
+                                disabled
+                                className="p-2.5 bg-gray-50 text-gray-300 rounded-xl cursor-not-allowed"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'library' && (
+          /* Library Tab */
+          <div className="space-y-6">
             {/* Library Header */}
             <div className="flex items-center justify-between">
               <div>
@@ -823,27 +775,24 @@ const Module2Page = () => {
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <BookOpen className="w-5 h-5 text-indigo-500" />
+                        <BookOpen className="w-5 h-5 text-blue-500" />
                         {libraryFilter === 'quizzes' ? 'All Quizzes' : 'Recent Quizzes'}
                       </h2>
                       {libraryFilter === 'all' && quizzes.length > 4 && (
                         <button 
                           onClick={() => setLibraryFilter('quizzes')}
-                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                          className="text-sm text-orange-600 hover:text-orange-700 font-medium"
                         >
                           View All
                         </button>
                       )}
                     </div>
-                    {getFilteredContent(quizzes).length > 0 ? (
+                    {quizzes.length > 0 ? (
                       <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4' : 'space-y-3'}>
-                        {getFilteredContent(libraryFilter === 'all' ? quizzes.slice(0, 4) : quizzes).map((quiz, index) => (
-                          <motion.div
+                        {(libraryFilter === 'all' ? quizzes.slice(0, 4) : quizzes).map((quiz, index) => (
+                          <div
                             key={quiz._id}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            whileHover={{ scale: 1.02 }}
-                            className={`bg-gradient-to-br ${cardColors[index % cardColors.length]} rounded-2xl overflow-hidden shadow-lg shadow-indigo-100 ${viewMode === 'list' ? 'flex items-center' : ''}`}
+                            className={`bg-gradient-to-br ${cardColors[index % cardColors.length]} rounded-2xl overflow-hidden ${viewMode === 'list' ? 'flex items-center' : ''}`}
                           >
                             <div className={`p-5 ${viewMode === 'list' ? 'flex items-center justify-between flex-1' : ''}`}>
                               <div className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
@@ -876,14 +825,14 @@ const Module2Page = () => {
                                 </button>
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
                     ) : (
                       <EmptyState
                         icon={BookOpen}
-                        title={searchQuery ? "No results found" : "No quizzes yet"}
-                        description={searchQuery ? `We couldn't find any quizzes matching "${searchQuery}"` : "Generate your first quiz from a document."}
+                        title="No quizzes yet"
+                        description="Generate your first quiz from a document."
                         buttonText="Generate Quiz"
                         onButtonClick={() => setActiveTab('generate')}
                       />
@@ -896,43 +845,36 @@ const Module2Page = () => {
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <Layers className="w-5 h-5 text-indigo-500" />
+                        <Layers className="w-5 h-5 text-amber-500" />
                         {libraryFilter === 'flashcards' ? 'All Flashcards' : 'Flashcards'}
                       </h2>
                       {libraryFilter === 'all' && flashcardSets.length > 4 && (
                         <button 
                           onClick={() => setLibraryFilter('flashcards')}
-                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                          className="text-sm text-orange-600 hover:text-orange-700 font-medium"
                         >
                           View All
                         </button>
                       )}
                     </div>
-                    {getFilteredContent(flashcardSets).length > 0 ? (
+                    {flashcardSets.length > 0 ? (
                       <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4' : 'space-y-3'}>
-                        {getFilteredContent(libraryFilter === 'all' ? flashcardSets.slice(0, 4) : flashcardSets).map((set, index) => (
-                          <motion.div
+                        {(libraryFilter === 'all' ? flashcardSets.slice(0, 4) : flashcardSets).map((set, index) => (
+                          <div
                             key={set._id}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            whileHover={{ scale: 1.02 }}
-                            className={`bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl overflow-hidden shadow-lg shadow-indigo-100 ${viewMode === 'list' ? 'flex items-center' : ''}`}
+                            className={`bg-gradient-to-br from-rose-400 to-pink-500 rounded-2xl overflow-hidden`}
                           >
-                            <div className={`p-5 ${viewMode === 'list' ? 'flex items-center justify-between flex-1' : ''}`}>
-                              <div className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
-                                <span className="inline-block px-2 py-1 bg-white/20 text-white text-xs font-medium rounded-md mb-3">
-                                  FLASHCARDS
-                                </span>
-                                {viewMode === 'grid' && (
-                                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
-                                    <Layers className="w-5 h-5 text-white" />
-                                  </div>
-                                )}
-                                <h3 className="font-semibold text-white mb-1">{set.title}</h3>
-                                <p className="text-white/80 text-xs mb-4">
-                                  {set.subject} • {formatDate(set.createdAt)}
-                                </p>
+                            <div className="p-5">
+                              <span className="inline-block px-2 py-1 bg-white/20 text-white text-xs font-medium rounded-md mb-3">
+                                FLASHCARDS
+                              </span>
+                              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                <Layers className="w-5 h-5 text-white" />
                               </div>
+                              <h3 className="font-semibold text-white mb-1">{set.title}</h3>
+                              <p className="text-white/80 text-xs mb-4">
+                                {set.subject} • {formatDate(set.createdAt)}
+                              </p>
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => viewContent('flashcards', set._id)}
@@ -949,14 +891,14 @@ const Module2Page = () => {
                                 </button>
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
                     ) : (
                       <EmptyState
                         icon={Layers}
-                        title={searchQuery ? "No results found" : "No flashcards yet"}
-                        description={searchQuery ? `We couldn't find any flashcard sets matching "${searchQuery}"` : "Create flashcards to memorize key concepts."}
+                        title="No flashcards yet"
+                        description="Create flashcards to memorize key concepts."
                         buttonText="Generate Flashcards"
                         onButtonClick={() => setActiveTab('generate')}
                       />
@@ -969,43 +911,36 @@ const Module2Page = () => {
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <Network className="w-5 h-5 text-teal-500" />
+                        <Network className="w-5 h-5 text-purple-500" />
                         {libraryFilter === 'mindmaps' ? 'All Mind Maps' : 'Mind Maps'}
                       </h2>
                       {libraryFilter === 'all' && mindMaps.length > 4 && (
                         <button 
                           onClick={() => setLibraryFilter('mindmaps')}
-                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                          className="text-sm text-orange-600 hover:text-orange-700 font-medium"
                         >
                           View All
                         </button>
                       )}
                     </div>
-                    {getFilteredContent(mindMaps).length > 0 ? (
+                    {mindMaps.length > 0 ? (
                       <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4' : 'space-y-3'}>
-                        {getFilteredContent(libraryFilter === 'all' ? mindMaps.slice(0, 4) : mindMaps).map((map) => (
-                          <motion.div
+                        {(libraryFilter === 'all' ? mindMaps.slice(0, 4) : mindMaps).map((map) => (
+                          <div
                             key={map._id}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            whileHover={{ scale: 1.02 }}
-                            className={`bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl overflow-hidden shadow-lg shadow-teal-100 ${viewMode === 'list' ? 'flex items-center' : ''}`}
+                            className="bg-gradient-to-br from-purple-400 to-violet-500 rounded-2xl overflow-hidden"
                           >
-                            <div className={`p-5 ${viewMode === 'list' ? 'flex items-center justify-between flex-1' : ''}`}>
-                              <div className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
-                                <span className="inline-block px-2 py-1 bg-white/20 text-white text-xs font-medium rounded-md mb-3">
-                                  MIND MAP
-                                </span>
-                                {viewMode === 'grid' && (
-                                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
-                                    <Network className="w-5 h-5 text-white" />
-                                  </div>
-                                )}
-                                <h3 className="font-semibold text-white mb-1">{map.title}</h3>
-                                <p className="text-white/80 text-xs mb-4">
-                                  {map.subject} • {formatDate(map.createdAt)}
-                                </p>
+                            <div className="p-5">
+                              <span className="inline-block px-2 py-1 bg-white/20 text-white text-xs font-medium rounded-md mb-3">
+                                MIND MAP
+                              </span>
+                              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                                <Network className="w-5 h-5 text-white" />
                               </div>
+                              <h3 className="font-semibold text-white mb-1">{map.title}</h3>
+                              <p className="text-white/80 text-xs mb-4">
+                                {map.subject} • {formatDate(map.createdAt)}
+                              </p>
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => viewContent('mindmap', map._id)}
@@ -1022,14 +957,14 @@ const Module2Page = () => {
                                 </button>
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
                     ) : (
                       <EmptyState
                         icon={Network}
-                        title={searchQuery ? "No results found" : "No mind maps yet"}
-                        description={searchQuery ? `We couldn't find any mind maps matching "${searchQuery}"` : "Visualize connections between concepts. Upload a document to generate your first mind map."}
+                        title="No mind maps yet"
+                        description="Visualize connections between concepts. Upload a document to generate your first mind map."
                         buttonText="Generate Mind Map"
                         onButtonClick={() => setActiveTab('generate')}
                       />
@@ -1042,46 +977,39 @@ const Module2Page = () => {
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <Volume2 className="w-5 h-5 text-slate-500" />
+                        <Volume2 className="w-5 h-5 text-orange-500" />
                         {libraryFilter === 'audio' ? 'All Audio Notes' : 'Audio Notes'}
                       </h2>
                       {libraryFilter === 'all' && audioNotes.length > 4 && (
                         <button 
                           onClick={() => setLibraryFilter('audio')}
-                          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                          className="text-sm text-orange-600 hover:text-orange-700 font-medium"
                         >
                           View All
                         </button>
                       )}
                     </div>
-                    {getFilteredContent(audioNotes).length > 0 ? (
+                    {audioNotes.length > 0 ? (
                       <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4' : 'space-y-3'}>
-                        {getFilteredContent(libraryFilter === 'all' ? audioNotes.slice(0, 4) : audioNotes).map((note) => (
-                          <motion.div
+                        {(libraryFilter === 'all' ? audioNotes.slice(0, 4) : audioNotes).map((note) => (
+                          <div
                             key={note._id}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            whileHover={{ scale: 1.02 }}
-                            className={`bg-gradient-to-br from-slate-500 to-slate-600 rounded-2xl overflow-hidden shadow-lg shadow-slate-100 ${viewMode === 'list' ? 'flex items-center' : ''}`}
+                            className="bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl overflow-hidden"
                           >
-                            <div className={`p-5 ${viewMode === 'list' ? 'flex items-center justify-between flex-1' : ''}`}>
-                              <div className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
-                                <span className="inline-block px-2 py-1 bg-white/20 text-white text-xs font-medium rounded-md mb-3">
-                                  AUDIO NOTE
+                            <div className="p-5">
+                              <span className="inline-block px-2 py-1 bg-white/20 text-white text-xs font-medium rounded-md mb-3">
+                                AUDIO NOTE
+                              </span>
+                              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4 relative">
+                                <Volume2 className="w-5 h-5 text-white" />
+                                <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 bg-white/30 text-white text-[10px] rounded">
+                                  {Math.floor((note.estimatedDuration || 0) / 60)}:{String((note.estimatedDuration || 0) % 60).padStart(2, '0')}
                                 </span>
-                                {viewMode === 'grid' && (
-                                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4 relative">
-                                    <Volume2 className="w-5 h-5 text-white" />
-                                    <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 bg-white/30 text-white text-[10px] rounded">
-                                      {Math.floor((note.estimatedDuration || 0) / 60)}:{String((note.estimatedDuration || 0) % 60).padStart(2, '0')}
-                                    </span>
-                                  </div>
-                                )}
-                                <h3 className="font-semibold text-white mb-1">{note.title}</h3>
-                                <p className="text-white/80 text-xs mb-4">
-                                  {note.subject} • {formatDate(note.createdAt)}
-                                </p>
                               </div>
+                              <h3 className="font-semibold text-white mb-1">{note.title}</h3>
+                              <p className="text-white/80 text-xs mb-4">
+                                {note.subject} • {formatDate(note.createdAt)}
+                              </p>
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => viewContent('audio', note._id)}
@@ -1098,14 +1026,14 @@ const Module2Page = () => {
                                 </button>
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
                     ) : (
                       <EmptyState
                         icon={Volume2}
-                        title={searchQuery ? "No results found" : "No audio notes yet"}
-                        description={searchQuery ? `We couldn't find any audio notes matching "${searchQuery}"` : "Listen and learn with AI-generated audio summaries."}
+                        title="No audio notes yet"
+                        description="Listen and learn with AI-generated audio summaries."
                         buttonText="Generate Audio Notes"
                         onButtonClick={() => setActiveTab('generate')}
                       />
@@ -1114,219 +1042,197 @@ const Module2Page = () => {
                 )}
               </div>
             )}
-            </motion.div>
-          )}
+          </div>
+        )}
 
-          {activeTab === 'progress' && (
-            <motion.div
-              key="progress"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-6"
-            >
-              {/* Progress Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Your Progress</h1>
-                  <p className="text-sm text-gray-500 mt-1">Track your learning journey and achievements.</p>
-                </div>
-                <button
-                  onClick={() => fetchProgressData()}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-colors"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Refresh
-                </button>
+        {activeTab === 'progress' && (
+          /* Progress Tab */
+          <div className="space-y-6">
+            {/* Progress Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Your Progress</h1>
+                <p className="text-sm text-gray-500 mt-1">Track your learning journey and achievements.</p>
               </div>
+              <button
+                onClick={() => fetchProgressData()}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Refresh
+              </button>
+            </div>
 
-              {loadingProgress ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                </div>
-              ) : progressData ? (
-                <div className="space-y-6">
-                  {/* Stats Overview Cards */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <motion.div 
-                      whileHover={{ scale: 1.05 }}
-                      className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg shadow-indigo-100"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <Trophy className="w-5 h-5 text-white/80" />
-                        <span className="text-sm text-white/80 font-medium">Quiz Score</span>
-                      </div>
-                      <p className="text-3xl font-bold">{progressData.averageScore || 0}%</p>
-                      <p className="text-xs text-white/70 mt-1">Average score</p>
-                    </motion.div>
-
-                    <motion.div 
-                      whileHover={{ scale: 1.05 }}
-                      className="bg-gradient-to-br from-teal-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg shadow-teal-100"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <Target className="w-5 h-5 text-white/80" />
-                        <span className="text-sm text-white/80 font-medium">Attempts</span>
-                      </div>
-                      <p className="text-3xl font-bold">{progressData.totalAttempts || 0}</p>
-                      <p className="text-xs text-white/70 mt-1">Quiz attempts</p>
-                    </motion.div>
-
-                    <motion.div 
-                      whileHover={{ scale: 1.05 }}
-                      className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg shadow-purple-100"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <Flame className="w-5 h-5 text-white/80" />
-                        <span className="text-sm text-white/80 font-medium">Streak</span>
-                      </div>
-                      <p className="text-3xl font-bold">{progressData.streak || 0}</p>
-                      <p className="text-xs text-white/70 mt-1">Day streak</p>
-                    </motion.div>
-
-                    <motion.div 
-                      whileHover={{ scale: 1.05 }}
-                      className="bg-gradient-to-br from-slate-500 to-slate-600 rounded-2xl p-5 text-white shadow-lg shadow-slate-100"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <BookOpen className="w-5 h-5 text-white/80" />
-                        <span className="text-sm text-white/80 font-medium">Quizzes</span>
-                      </div>
-                      <p className="text-3xl font-bold">{progressData.uniqueQuizzesTaken || 0}/{progressData.totalQuizzes || 0}</p>
-                      <p className="text-xs text-white/70 mt-1">Quizzes taken</p>
-                    </motion.div>
+            {loadingProgress ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
+              </div>
+            ) : progressData ? (
+              <div className="space-y-6">
+                {/* Stats Overview Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Trophy className="w-5 h-5 text-white/80" />
+                      <span className="text-sm text-white/80 font-medium">Quiz Score</span>
+                    </div>
+                    <p className="text-3xl font-bold">{progressData.averageScore || 0}%</p>
+                    <p className="text-xs text-white/70 mt-1">Average score</p>
                   </div>
 
-                  {/* Content Created Stats */}
-                  <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-6">
-                    <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5 text-indigo-500" />
-                      Content Created
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="p-4 bg-indigo-50 rounded-xl">
-                        <div className="flex items-center gap-2 mb-2">
-                          <BookOpen className="w-4 h-4 text-indigo-600" />
-                          <span className="text-xs text-indigo-600 font-medium">Quizzes</span>
-                        </div>
-                        <p className="text-2xl font-bold text-indigo-700">{progressData.totalQuizzes || 0}</p>
+                  <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Target className="w-5 h-5 text-white/80" />
+                      <span className="text-sm text-white/80 font-medium">Attempts</span>
+                    </div>
+                    <p className="text-3xl font-bold">{progressData.totalAttempts || 0}</p>
+                    <p className="text-xs text-white/70 mt-1">Quiz attempts</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-5 text-white">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Flame className="w-5 h-5 text-white/80" />
+                      <span className="text-sm text-white/80 font-medium">Streak</span>
+                    </div>
+                    <p className="text-3xl font-bold">{progressData.streak || 0}</p>
+                    <p className="text-xs text-white/70 mt-1">Day streak</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl p-5 text-white">
+                    <div className="flex items-center gap-2 mb-3">
+                      <BookOpen className="w-5 h-5 text-white/80" />
+                      <span className="text-sm text-white/80 font-medium">Quizzes</span>
+                    </div>
+                    <p className="text-3xl font-bold">{progressData.uniqueQuizzesTaken || 0}/{progressData.totalQuizzes || 0}</p>
+                    <p className="text-xs text-white/70 mt-1">Quizzes taken</p>
+                  </div>
+                </div>
+
+                {/* Content Created Stats */}
+                <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6">
+                  <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-orange-500" />
+                    Content Created
+                  </h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BookOpen className="w-4 h-4 text-blue-600" />
+                        <span className="text-xs text-blue-600 font-medium">Quizzes</span>
                       </div>
-                      <div className="p-4 bg-teal-50 rounded-xl">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Layers className="w-4 h-4 text-teal-600" />
-                          <span className="text-xs text-teal-600 font-medium">Flashcards</span>
-                        </div>
-                        <p className="text-2xl font-bold text-teal-700">{progressData.totalFlashcardSets || 0}</p>
+                      <p className="text-2xl font-bold text-blue-700">{progressData.totalQuizzes || 0}</p>
+                    </div>
+                    <div className="p-4 bg-amber-50 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Layers className="w-4 h-4 text-amber-600" />
+                        <span className="text-xs text-amber-600 font-medium">Flashcards</span>
                       </div>
-                      <div className="p-4 bg-purple-50 rounded-xl">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Network className="w-4 h-4 text-purple-600" />
-                          <span className="text-xs text-purple-600 font-medium">Mind Maps</span>
-                        </div>
-                        <p className="text-2xl font-bold text-purple-700">{progressData.totalMindMaps || 0}</p>
+                      <p className="text-2xl font-bold text-amber-700">{progressData.totalFlashcardSets || 0}</p>
+                    </div>
+                    <div className="p-4 bg-purple-50 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Network className="w-4 h-4 text-purple-600" />
+                        <span className="text-xs text-purple-600 font-medium">Mind Maps</span>
                       </div>
-                      <div className="p-4 bg-slate-50 rounded-xl">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Volume2 className="w-4 h-4 text-slate-600" />
-                          <span className="text-xs text-slate-600 font-medium">Audio Notes</span>
-                        </div>
-                        <p className="text-2xl font-bold text-slate-700">{progressData.totalAudioNotes || 0}</p>
+                      <p className="text-2xl font-bold text-purple-700">{progressData.totalMindMaps || 0}</p>
+                    </div>
+                    <div className="p-4 bg-orange-50 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Volume2 className="w-4 h-4 text-orange-600" />
+                        <span className="text-xs text-orange-600 font-medium">Audio Notes</span>
                       </div>
+                      <p className="text-2xl font-bold text-orange-700">{progressData.totalAudioNotes || 0}</p>
                     </div>
                   </div>
+                </div>
 
-                  {/* Subject Performance */}
-                  {progressData.subjectPerformance && progressData.subjectPerformance.length > 0 && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-6">
-                      <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-indigo-500" />
-                        Performance by Subject
-                      </h2>
-                      <div className="space-y-4">
-                        {progressData.subjectPerformance.map((subject, index) => (
-                          <div key={index} className="flex items-center gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm font-medium text-gray-700">{subject.subject}</span>
-                                <span className="text-sm text-gray-500">{subject.averageScore}% avg</span>
-                              </div>
-                              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                <motion.div 
-                                  initial={{ width: 0 }}
-                                  animate={{ width: subject.averageScore + '%' }}
-                                  transition={{ duration: 1, delay: 0.5 }}
-                                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full"
-                                />
-                              </div>
-                              <div className="flex items-center justify-between mt-1">
-                                <span className="text-xs text-gray-400">{subject.attempts} attempts</span>
-                                <span className="text-xs text-green-600">Best: {subject.highestScore}%</span>
-                              </div>
+                {/* Subject Performance */}
+                {progressData.subjectPerformance && progressData.subjectPerformance.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-orange-500" />
+                      Performance by Subject
+                    </h2>
+                    <div className="space-y-4">
+                      {progressData.subjectPerformance.map((subject, index) => (
+                        <div key={index} className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-gray-700">{subject.subject}</span>
+                              <span className="text-sm text-gray-500">{subject.averageScore}% avg</span>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full transition-all duration-500"
+                                style={{ width: `${subject.averageScore}%` }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-xs text-gray-400">{subject.attempts} attempts</span>
+                              <span className="text-xs text-green-600">Best: {subject.highestScore}%</span>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
-
-                  {/* Recent Activity */}
-                  {progressData.recentActivity && progressData.recentActivity.length > 0 && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-6">
-                      <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-indigo-500" />
-                        Recent Quiz Activity
-                      </h2>
-                      <div className="space-y-3">
-                        {progressData.recentActivity.map((activity, index) => (
-                          <motion.div 
-                            key={index}
-                            whileHover={{ x: 5 }}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
-                            onClick={() => navigate(`/module2/quiz/${activity.quizId}`)}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                activity.score >= 80 ? 'bg-green-100' : 
-                                activity.score >= 60 ? 'bg-yellow-100' : 'bg-red-100'
-                              }`}>
-                                <span className={`text-sm font-bold ${
-                                  activity.score >= 80 ? 'text-green-600' : 
-                                  activity.score >= 60 ? 'text-yellow-600' : 'text-red-600'
-                                }`}>
-                                  {activity.score}%
-                                </span>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{activity.quizTitle}</p>
-                                <p className="text-xs text-gray-500">{formatDate(activity.completedAt)}</p>
-                              </div>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-gray-400" />
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-20">
-                  <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <BarChart3 className="w-8 h-8 text-indigo-500" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Progress Data Yet</h3>
-                  <p className="text-sm text-gray-500 mb-4">Start taking quizzes to track your progress!</p>
-                  <button
-                    onClick={() => setActiveTab('generate')}
-                    className="px-6 py-2 bg-indigo-500 text-white rounded-lg text-sm font-medium hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-100"
-                  >
-                    Generate Your First Quiz
-                  </button>
+                )}
+
+                {/* Recent Activity */}
+                {progressData.recentActivity && progressData.recentActivity.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-orange-500" />
+                      Recent Quiz Activity
+                    </h2>
+                    <div className="space-y-3">
+                      {progressData.recentActivity.map((activity, index) => (
+                        <div 
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                          onClick={() => navigate(`/module2/quiz/${activity.quizId}`)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              activity.score >= 80 ? 'bg-green-100' : 
+                              activity.score >= 60 ? 'bg-yellow-100' : 'bg-red-100'
+                            }`}>
+                              <span className={`text-sm font-bold ${
+                                activity.score >= 80 ? 'text-green-600' : 
+                                activity.score >= 60 ? 'text-yellow-600' : 'text-red-600'
+                              }`}>
+                                {activity.score}%
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{activity.quizTitle}</p>
+                              <p className="text-xs text-gray-500">{formatDate(activity.completedAt)}</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-20">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <BarChart3 className="w-8 h-8 text-orange-500" />
                 </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Progress Data Yet</h3>
+                <p className="text-sm text-gray-500 mb-4">Start taking quizzes to track your progress!</p>
+                <button
+                  onClick={() => setActiveTab('generate')}
+                  className="px-6 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
+                >
+                  Generate Your First Quiz
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Full-screen Loading Overlay */}
@@ -1660,15 +1566,15 @@ const Module2Page = () => {
 
 // Empty State Component
 const EmptyState = ({ icon: Icon, title, description, buttonText, onButtonClick }) => (
-  <div className="bg-white rounded-2xl border border-dashed border-indigo-200 p-8 text-center shadow-sm">
-    <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-      <Icon className="w-8 h-8 text-indigo-400" />
+  <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-8 text-center">
+    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+      <Icon className="w-8 h-8 text-gray-400" />
     </div>
     <h3 className="font-semibold text-gray-900 mb-2">{title}</h3>
     <p className="text-sm text-gray-500 mb-4 max-w-sm mx-auto">{description}</p>
     <button
       onClick={onButtonClick}
-      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
     >
       <Plus className="w-4 h-4" />
       {buttonText}
