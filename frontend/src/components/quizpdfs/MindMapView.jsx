@@ -19,8 +19,10 @@ import {
   Layers,
   FolderOpen,
   Heart,
-  Map
+  Map,
+  BookOpen
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
@@ -32,10 +34,6 @@ const MindMapView = () => {
   const [expandedNodes, setExpandedNodes] = useState(new Set());
   const [zoom, setZoom] = useState(1);
   const [showSidebar, setShowSidebar] = useState(true);
-
-  useEffect(() => {
-    fetchMindMap();
-  }, [id]);
 
   const fetchMindMap = async () => {
     try {
@@ -55,6 +53,10 @@ const MindMapView = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchMindMap();
+  }, [id]);
 
   const toggleNode = (nodeId) => {
     const newExpanded = new Set(expandedNodes);
@@ -77,14 +79,26 @@ const MindMapView = () => {
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
 
+  const handleDownload = () => {
+    if (!mindMap) return;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mindMap, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `${mindMap.title.replace(/\s+/g, '_')}_mindmap.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    toast.success('Mind map exported as JSON');
+  };
+
   const getNodeColor = (level) => {
     const colors = [
-      { bg: 'bg-gradient-to-r from-blue-100 to-blue-50', border: 'border-blue-200', text: 'text-blue-800', dot: 'bg-blue-500' },
-      { bg: 'bg-gradient-to-r from-emerald-100 to-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', dot: 'bg-emerald-500' },
+      { bg: 'bg-gradient-to-r from-indigo-100 to-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', dot: 'bg-indigo-500' },
+      { bg: 'bg-gradient-to-r from-teal-100 to-teal-50', border: 'border-teal-200', text: 'text-teal-800', dot: 'bg-teal-500' },
       { bg: 'bg-gradient-to-r from-purple-100 to-purple-50', border: 'border-purple-200', text: 'text-purple-800', dot: 'bg-purple-500' },
-      { bg: 'bg-gradient-to-r from-amber-100 to-amber-50', border: 'border-amber-200', text: 'text-amber-800', dot: 'bg-amber-500' },
-      { bg: 'bg-gradient-to-r from-rose-100 to-rose-50', border: 'border-rose-200', text: 'text-rose-800', dot: 'bg-rose-500' },
-      { bg: 'bg-gradient-to-r from-cyan-100 to-cyan-50', border: 'border-cyan-200', text: 'text-cyan-800', dot: 'bg-cyan-500' },
+      { bg: 'bg-gradient-to-r from-emerald-100 to-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', dot: 'bg-emerald-500' },
+      { bg: 'bg-gradient-to-r from-slate-100 to-slate-50', border: 'border-slate-200', text: 'text-slate-800', dot: 'bg-slate-500' },
+      { bg: 'bg-gradient-to-r from-blue-100 to-blue-50', border: 'border-blue-200', text: 'text-blue-800', dot: 'bg-blue-500' },
     ];
     return colors[level % colors.length];
   };
@@ -104,16 +118,20 @@ const MindMapView = () => {
 
       return (
         <div key={node.id} className="relative">
-          <div className="flex items-start gap-2 py-1.5">
+          <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-start gap-2 py-1.5"
+          >
             {hasChildren ? (
               <button
                 onClick={() => toggleNode(node.id)}
-                className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0 mt-1.5"
+                className="p-1 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0 mt-1.5"
               >
                 {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <ChevronDown className="w-4 h-4 text-indigo-500" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                  <ChevronRight className="w-4 h-4 text-indigo-500" />
                 )}
               </button>
             ) : (
@@ -122,24 +140,32 @@ const MindMapView = () => {
               </div>
             )}
 
-            <div 
-              className={`px-4 py-2.5 rounded-xl border ${color.bg} ${color.border} ${color.text} cursor-pointer hover:shadow-md transition-all`}
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className={`px-4 py-2.5 rounded-xl border shadow-sm ${color.bg} ${color.border} ${color.text} cursor-pointer hover:shadow-md transition-all`}
               onClick={() => hasChildren && toggleNode(node.id)}
             >
-              <div className="text-sm font-medium">{node.label}</div>
+              <div className="text-sm font-bold">{node.label}</div>
               {node.description && (
-                <div className="text-xs opacity-70 mt-1 font-normal max-w-xs">
+                <div className="text-[11px] opacity-80 mt-1 font-normal max-w-xs leading-relaxed">
                   {node.description}
                 </div>
               )}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
-          {hasChildren && isExpanded && (
-            <div className="ml-8 pl-4 border-l-2 border-gray-200">
-              {children.map(child => renderNode(child, depth + 1))}
-            </div>
-          )}
+          <AnimatePresence>
+            {hasChildren && isExpanded && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="ml-8 pl-4 border-l-2 border-indigo-100 overflow-hidden"
+              >
+                {children.map(child => renderNode(child, depth + 1))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       );
     };
@@ -149,9 +175,9 @@ const MindMapView = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-400 to-amber-500 animate-pulse flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 animate-pulse flex items-center justify-center shadow-lg shadow-indigo-100">
             <Loader2 className="w-6 h-6 text-white animate-spin" />
           </div>
           <span className="text-sm text-gray-500">Loading mind map...</span>
@@ -162,14 +188,14 @@ const MindMapView = () => {
 
   if (!mindMap) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50">
         <div className="text-center py-12">
           <p className="text-gray-500">Mind map not found</p>
           <button
             onClick={() => navigate('/module2')}
-            className="mt-4 text-orange-600 hover:text-orange-700"
+            className="mt-4 text-indigo-600 hover:text-indigo-700"
           >
-            Return to Library
+            Return to Study Tools
           </button>
         </div>
       </div>
@@ -177,26 +203,26 @@ const MindMapView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-orange-100 sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-md border-b border-indigo-100 sticky top-0 z-50">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl shadow-lg">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/module2')}>
+              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-100">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <span className="font-bold text-gray-900">StudyAI</span>
             </div>
             
             <nav className="hidden md:flex items-center gap-6">
-              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Quizzes</span>
-              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Flashcards</span>
-              <span className="text-sm font-medium text-orange-600">Mind Maps</span>
-              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Library</span>
+              <button onClick={() => navigate('/module2')} className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Quizzes</button>
+              <button onClick={() => navigate('/module2')} className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Flashcards</button>
+              <button onClick={() => navigate('/module2')} className="text-sm font-medium text-indigo-600">Mind Maps</button>
+              <button onClick={() => navigate('/module2')} className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Library</button>
             </nav>
             
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-medium text-sm">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-sm shadow-md">
               U
             </div>
           </div>
@@ -205,83 +231,94 @@ const MindMapView = () => {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
-        {showSidebar && (
-          <aside className="w-72 bg-white border-r border-orange-100 flex flex-col overflow-y-auto">
-            {/* Active Mind Map */}
-            <div className="p-4 border-b border-orange-100">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Active Mind Map</h3>
-              <div className="p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-500 rounded-lg">
-                    <Network className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{mindMap.title}</p>
-                    <p className="text-xs text-gray-500">{mindMap.totalNodes} nodes</p>
+        <AnimatePresence>
+          {showSidebar && (
+            <motion.aside 
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 288, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="bg-white border-r border-indigo-100 flex flex-col overflow-y-auto"
+            >
+              {/* Active Mind Map */}
+              <div className="p-4 border-b border-indigo-100">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Active Mind Map</h3>
+                <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg shadow-md">
+                      <Network className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{mindMap.title}</p>
+                      <p className="text-xs text-gray-500">{mindMap.totalNodes} nodes</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* My Library */}
-            <div className="p-4 border-b border-orange-100">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">My Library</h3>
-              <button 
-                onClick={() => navigate('/module2')}
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 rounded-lg transition-colors"
-              >
-                <FolderOpen className="w-4 h-4 text-gray-400" />
-                All Mind Maps
-              </button>
-            </div>
-
-            {/* Recent */}
-            <div className="p-4 border-b border-orange-100">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Recent</h3>
-              <div className="space-y-1">
-                <div className="flex items-center gap-3 px-3 py-2 bg-orange-50 rounded-lg">
-                  <Clock className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm text-gray-700 truncate">{mindMap.title}</span>
+              {/* Navigation Links */}
+              <div className="p-4 border-b border-indigo-100">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Navigation</h3>
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => navigate('/module2')}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all group"
+                  >
+                    <FolderOpen className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" />
+                    Library
+                  </button>
+                  <button 
+                    onClick={() => navigate('/module2')}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all group"
+                  >
+                    <BookOpen className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" />
+                    Quizzes
+                  </button>
+                  <button 
+                    onClick={() => navigate('/module2')}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all group"
+                  >
+                    <Layers className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" />
+                    Flashcards
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* Favorites */}
-            <div className="p-4">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Favorites</h3>
-              <div className="text-center py-4">
-                <Heart className="w-6 h-6 text-gray-300 mx-auto mb-2" />
-                <p className="text-xs text-gray-400">No favorites yet</p>
+              {/* Favorites placeholder */}
+              <div className="p-4 mt-auto">
+                <div className="text-center py-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <Heart className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+                  <p className="text-[11px] text-slate-400 font-medium">Add to favorites for quick access</p>
+                </div>
               </div>
-            </div>
-          </aside>
-        )}
+            </motion.aside>
+          )}
+        </AnimatePresence>
 
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Mind Map Info Bar */}
-          <div className="px-6 py-4 bg-white/50 border-b border-orange-100">
+          <div className="px-6 py-4 bg-white/50 backdrop-blur-sm border-b border-indigo-100">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-bold text-gray-900">{mindMap.title}</h1>
-                <p className="text-sm text-gray-500">
-                  Central Topic: <span className="font-medium text-gray-700">{mindMap.centralTopic}</span>
-                  <span className="mx-2">•</span>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Central Topic: <span className="font-semibold text-indigo-600">{mindMap.centralTopic}</span>
+                  <span className="mx-2 opacity-30">•</span>
                   {mindMap.subject}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowSidebar(!showSidebar)}
-                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                  className={`p-2 rounded-lg transition-all ${showSidebar ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
                   title={showSidebar ? "Hide sidebar" : "Show sidebar"}
                 >
                   <Layers className="w-5 h-5" />
                 </button>
                 <button
-                  onClick={() => {}}
-                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Download"
+                  onClick={handleDownload}
+                  className="p-2 text-gray-500 hover:bg-indigo-100 hover:text-indigo-600 rounded-lg transition-all"
+                  title="Download as JSON"
                 >
                   <Download className="w-5 h-5" />
                 </button>
@@ -290,61 +327,69 @@ const MindMapView = () => {
           </div>
 
           {/* Mind Map Visualization */}
-          <div className="flex-1 overflow-auto p-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6 min-h-full">
+          <div className="flex-1 overflow-auto p-6 bg-slate-50/30">
+            <div className="bg-white rounded-3xl shadow-xl border border-indigo-100 p-8 min-h-full">
               {/* Central Topic */}
-              <div className="mb-8 flex justify-center">
-                <div className="inline-flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl text-white shadow-lg">
-                  <Network className="w-6 h-6" />
-                  <span className="text-xl font-bold">{mindMap.centralTopic}</span>
-                </div>
+              <div className="mb-12 flex justify-center">
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="inline-flex items-center gap-4 px-8 py-5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl text-white shadow-xl shadow-indigo-100 border-4 border-white"
+                >
+                  <div className="p-3 bg-white/20 rounded-2xl">
+                    <Network className="w-8 h-8" />
+                  </div>
+                  <span className="text-2xl font-black tracking-tight">{mindMap.centralTopic}</span>
+                </motion.div>
               </div>
 
               {/* Tree View */}
               <div 
-                className="transition-transform origin-top"
+                className="transition-transform origin-top flex flex-col items-center"
                 style={{ transform: `scale(${zoom})` }}
               >
-                {buildTree(mindMap.nodes)}
+                <div className="w-full max-w-4xl">
+                  {buildTree(mindMap.nodes)}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Bottom Toolbar */}
-          <div className="px-6 py-3 bg-white border-t border-orange-100">
+          <div className="px-6 py-4 bg-white border-t border-indigo-100 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <button
                   onClick={expandAll}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-gray-700 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 rounded-xl transition-all"
                 >
                   <Maximize2 className="w-4 h-4" />
                   Expand All
                 </button>
                 <button
                   onClick={collapseAll}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-gray-700 bg-slate-100 hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-all"
                 >
                   <Minimize2 className="w-4 h-4" />
                   Collapse All
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center bg-slate-100 rounded-2xl px-2 py-1 shadow-inner border border-slate-200">
                 <button
                   onClick={handleZoomOut}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 text-gray-600 hover:bg-white hover:text-indigo-600 rounded-xl transition-all shadow-sm"
                   title="Zoom Out"
                 >
-                  <ZoomOut className="w-5 h-5" />
+                  <ZoomOut className="w-4 h-4" />
                 </button>
-                <span className="text-sm text-gray-500 w-16 text-center">{Math.round(zoom * 100)}%</span>
+                <span className="text-xs font-black text-indigo-600 w-16 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
                 <button
                   onClick={handleZoomIn}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 text-gray-600 hover:bg-white hover:text-indigo-600 rounded-xl transition-all shadow-sm"
                   title="Zoom In"
                 >
-                  <ZoomIn className="w-5 h-5" />
+                  <ZoomIn className="w-4 h-4" />
                 </button>
               </div>
 
@@ -353,7 +398,7 @@ const MindMapView = () => {
                   toast.success('Regenerating mind map...');
                   fetchMindMap();
                 }}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-md rounded-lg transition-all"
+                className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:shadow-lg shadow-indigo-100 rounded-xl transition-all hover:scale-105"
               >
                 <RefreshCw className="w-4 h-4" />
                 Regenerate
@@ -362,52 +407,54 @@ const MindMapView = () => {
           </div>
         </main>
 
-        {/* Right Panel - Source & Navigator */}
-        <aside className="w-64 bg-white border-l border-orange-100 flex flex-col overflow-y-auto hidden lg:flex">
+        {/* Right Panel - Source & Legend */}
+        <aside className="w-72 bg-white border-l border-indigo-100 flex flex-col overflow-y-auto hidden xl:flex">
           {/* Source Document */}
-          <div className="p-4 border-b border-orange-100">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Source Document</h3>
-            <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+          <div className="p-5 border-b border-indigo-100">
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Source Material</h3>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <FileText className="w-4 h-4 text-orange-600" />
+                <div className="p-2.5 bg-indigo-100 rounded-xl">
+                  <FileText className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{mindMap.sourceFile || 'Uploaded PDF'}</p>
-                  <p className="text-xs text-gray-500">{mindMap.subject}</p>
+                  <p className="text-sm font-bold text-gray-900 truncate">{mindMap.sourceFile || 'Uploaded PDF'}</p>
+                  <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-tight">{mindMap.subject}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Navigator Minimap */}
-          <div className="p-4 flex-1">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Navigator</h3>
-            <div className="aspect-square bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-200 p-4 flex items-center justify-center">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-400 to-amber-500 rounded-full flex items-center justify-center">
-                  <Map className="w-6 h-6 text-white" />
+          {/* Navigator Minimap placeholder */}
+          <div className="p-5 flex-1">
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Navigator</h3>
+            <div className="aspect-square bg-gradient-to-br from-indigo-50 to-slate-50 rounded-3xl border-2 border-dashed border-indigo-200 p-6 flex items-center justify-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10 text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xl shadow-indigo-100 border-4 border-white">
+                  <Map className="w-8 h-8 text-white" />
                 </div>
-                <div className="absolute -top-2 -right-4 w-6 h-6 bg-blue-100 rounded-full border-2 border-white" />
-                <div className="absolute -bottom-2 -left-4 w-6 h-6 bg-emerald-100 rounded-full border-2 border-white" />
-                <div className="absolute -bottom-4 right-0 w-6 h-6 bg-purple-100 rounded-full border-2 border-white" />
+                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter">View Matrix</p>
+                <p className="text-[10px] text-slate-400 mt-1">{mindMap.totalNodes} Nodes Mapped</p>
               </div>
             </div>
-            <p className="text-xs text-center text-gray-400 mt-3">{mindMap.totalNodes} nodes total</p>
           </div>
 
           {/* Legend */}
-          <div className="p-4 border-t border-orange-100">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Legend</h3>
-            <div className="space-y-2">
+          <div className="p-5 border-t border-indigo-100 bg-slate-50/50">
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Legend</h3>
+            <div className="space-y-3">
               {[
-                { color: 'bg-blue-500', label: 'Main Branches' },
-                { color: 'bg-emerald-500', label: 'Sub-topics' },
-                { color: 'bg-purple-500', label: 'Details' },
+                { color: 'bg-indigo-500', label: 'Main Branches', desc: 'Core concepts' },
+                { color: 'bg-teal-500', label: 'Sub-topics', desc: 'Detailed areas' },
+                { color: 'bg-purple-500', label: 'Nodes', desc: 'Specific details' },
               ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${item.color}`} />
-                  <span className="text-xs text-gray-600">{item.label}</span>
+                <div key={idx} className="flex items-start gap-3">
+                  <div className={`w-3 h-3 rounded-full ${item.color} mt-1 shadow-sm`} />
+                  <div>
+                    <p className="text-xs font-bold text-gray-700 leading-none">{item.label}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{item.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
