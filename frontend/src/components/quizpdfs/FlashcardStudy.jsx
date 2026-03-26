@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -35,6 +36,18 @@ const FlashcardStudy = () => {
   const [studyComplete, setStudyComplete] = useState(false);
   const [difficultyFilter, setDifficultyFilter] = useState('all');
 
+  // Filtered cards based on difficulty
+  const filteredCards = difficultyFilter === 'all' 
+    ? shuffledCards 
+    : shuffledCards.filter(card => card.difficulty === difficultyFilter);
+
+  // Reset current index when filter changes
+  useEffect(() => {
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setShowHint(false);
+  }, [difficultyFilter]);
+
   useEffect(() => {
     fetchFlashcardSet();
   }, [id]);
@@ -52,7 +65,7 @@ const FlashcardStudy = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, shuffledCards.length]);
+  }, [currentIndex, filteredCards.length]);
 
   const fetchFlashcardSet = async () => {
     try {
@@ -83,14 +96,14 @@ const FlashcardStudy = () => {
   };
 
   const handleNext = useCallback(() => {
-    if (currentIndex < shuffledCards.length - 1) {
+    if (currentIndex < filteredCards.length - 1) {
       setCurrentIndex(prev => prev + 1);
       setIsFlipped(false);
       setShowHint(false);
     } else {
       setStudyComplete(true);
     }
-  }, [currentIndex, shuffledCards.length]);
+  }, [currentIndex, filteredCards.length]);
 
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
@@ -121,6 +134,7 @@ const FlashcardStudy = () => {
     setShowHint(false);
     setStudyStats({ correct: 0, incorrect: 0, skipped: 0 });
     setStudyComplete(false);
+    setDifficultyFilter('all');
   };
 
   const getDifficultyCount = (difficulty) => {
@@ -130,9 +144,9 @@ const FlashcardStudy = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-400 to-amber-500 animate-pulse flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 animate-pulse flex items-center justify-center shadow-lg shadow-indigo-100">
             <Loader2 className="w-6 h-6 text-white animate-spin" />
           </div>
           <span className="text-sm text-gray-500">Loading flashcards...</span>
@@ -143,12 +157,12 @@ const FlashcardStudy = () => {
 
   if (!flashcardSet) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50">
         <div className="text-center py-12">
           <p className="text-gray-500">Flashcard set not found</p>
           <button
             onClick={() => navigate('/module2')}
-            className="mt-4 text-orange-600 hover:text-orange-700"
+            className="mt-4 text-indigo-600 hover:text-indigo-700"
           >
             Return to Study Tools
           </button>
@@ -157,34 +171,34 @@ const FlashcardStudy = () => {
     );
   }
 
-  const currentCard = shuffledCards[currentIndex];
-  const progress = Math.round(((currentIndex + 1) / shuffledCards.length) * 100);
+  const currentCard = filteredCards[currentIndex];
+  const progress = Math.round(((currentIndex + 1) / filteredCards.length) * 100);
 
   if (studyComplete) {
     const totalAnswered = studyStats.correct + studyStats.incorrect;
     const accuracy = totalAnswered > 0 ? Math.round((studyStats.correct / totalAnswered) * 100) : 0;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-sm border-b border-orange-100 sticky top-0 z-50">
+        <header className="bg-white/80 backdrop-blur-md border-b border-indigo-100 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl shadow-lg">
+              <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/module2')}>
+                <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <span className="font-bold text-gray-900">StudyAI</span>
               </div>
               
               <nav className="hidden md:flex items-center gap-6">
-                <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Quizzes</span>
-                <span className="text-sm font-medium text-orange-600">Flashcards</span>
-                <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Mind Maps</span>
-                <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Library</span>
+                <button onClick={() => navigate('/module2')} className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Quizzes</button>
+                <button onClick={() => navigate('/module2')} className="text-sm font-medium text-indigo-600">Flashcards</button>
+                <button onClick={() => navigate('/module2')} className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Mind Maps</button>
+                <button onClick={() => navigate('/module2')} className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Library</button>
               </nav>
               
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-medium text-sm">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-sm">
                 U
               </div>
             </div>
@@ -192,8 +206,8 @@ const FlashcardStudy = () => {
         </header>
 
         <main className="max-w-2xl mx-auto px-4 py-12">
-          <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-8 text-center">
-            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-xl border border-indigo-100 p-8 text-center">
+            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-100">
               <CheckCircle2 className="w-10 h-10 text-white" />
             </div>
             
@@ -201,29 +215,29 @@ const FlashcardStudy = () => {
             <p className="text-gray-600 mb-8">Here's how you did with "{flashcardSet.title}"</p>
 
             <div className="grid grid-cols-3 gap-4 mb-8">
-              <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100">
-                <div className="text-3xl font-bold text-green-600">{studyStats.correct}</div>
-                <div className="text-sm text-green-700">Knew It</div>
+              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="text-3xl font-bold text-emerald-600">{studyStats.correct}</div>
+                <div className="text-sm text-emerald-700">Knew It</div>
               </div>
-              <div className="p-4 bg-gradient-to-br from-red-50 to-rose-50 rounded-xl border border-red-100">
-                <div className="text-3xl font-bold text-red-600">{studyStats.incorrect}</div>
-                <div className="text-sm text-red-700">Didn't Know</div>
+              <div className="p-4 bg-rose-50 rounded-xl border border-rose-100">
+                <div className="text-3xl font-bold text-rose-600">{studyStats.incorrect}</div>
+                <div className="text-sm text-rose-700">Didn't Know</div>
               </div>
-              <div className="p-4 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl border border-gray-200">
-                <div className="text-3xl font-bold text-gray-600">{studyStats.skipped}</div>
-                <div className="text-sm text-gray-700">Skipped</div>
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="text-3xl font-bold text-slate-600">{studyStats.skipped}</div>
+                <div className="text-sm text-slate-700">Skipped</div>
               </div>
             </div>
 
             <div className="mb-8">
-              <div className="text-5xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent mb-2">{accuracy}%</div>
+              <div className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">{accuracy}%</div>
               <div className="text-gray-500">Accuracy Rate</div>
             </div>
 
             <div className="flex gap-4 justify-center">
               <button
                 onClick={restartStudy}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:shadow-lg transition-all font-medium"
+                className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all font-medium shadow-md shadow-indigo-100"
               >
                 Study Again
               </button>
@@ -241,26 +255,26 @@ const FlashcardStudy = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-orange-100 sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-md border-b border-indigo-100 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl shadow-lg">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/module2')}>
+              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-100">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <span className="font-bold text-gray-900">StudyAI</span>
             </div>
             
             <nav className="hidden md:flex items-center gap-6">
-              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Quizzes</span>
-              <span className="text-sm font-medium text-orange-600">Flashcards</span>
-              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Mind Maps</span>
-              <span className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">Library</span>
+              <button onClick={() => navigate('/module2')} className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Quizzes</button>
+              <button onClick={() => navigate('/module2')} className="text-sm font-medium text-indigo-600">Flashcards</button>
+              <button onClick={() => navigate('/module2')} className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Mind Maps</button>
+              <button onClick={() => navigate('/module2')} className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Library</button>
             </nav>
             
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-medium text-sm">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-sm">
               U
             </div>
           </div>
@@ -274,11 +288,11 @@ const FlashcardStudy = () => {
         {/* Difficulty Badges */}
         <div className="flex items-center justify-center gap-3 mb-6">
           <button
-            onClick={() => setDifficultyFilter('easy')}
+            onClick={() => setDifficultyFilter(difficultyFilter === 'easy' ? 'all' : 'easy')}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
               difficultyFilter === 'easy' 
-                ? 'bg-green-500 text-white shadow-md' 
-                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                ? 'bg-emerald-500 text-white shadow-md' 
+                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
             }`}
           >
             {difficultyFilter === 'easy' && <Check className="w-4 h-4" />}
@@ -286,11 +300,11 @@ const FlashcardStudy = () => {
             <span className="ml-1 opacity-70">{getDifficultyCount('easy')}</span>
           </button>
           <button
-            onClick={() => setDifficultyFilter('medium')}
+            onClick={() => setDifficultyFilter(difficultyFilter === 'medium' ? 'all' : 'medium')}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
               difficultyFilter === 'medium' 
-                ? 'bg-amber-500 text-white shadow-md' 
-                : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                ? 'bg-indigo-500 text-white shadow-md' 
+                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
             }`}
           >
             {difficultyFilter === 'medium' && <Check className="w-4 h-4" />}
@@ -298,11 +312,11 @@ const FlashcardStudy = () => {
             <span className="ml-1 opacity-70">{getDifficultyCount('medium')}</span>
           </button>
           <button
-            onClick={() => setDifficultyFilter('hard')}
+            onClick={() => setDifficultyFilter(difficultyFilter === 'hard' ? 'all' : 'hard')}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
               difficultyFilter === 'hard' 
-                ? 'bg-red-500 text-white shadow-md' 
-                : 'bg-red-100 text-red-700 hover:bg-red-200'
+                ? 'bg-purple-500 text-white shadow-md' 
+                : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
             }`}
           >
             {difficultyFilter === 'hard' && <Check className="w-4 h-4" />}
@@ -315,16 +329,17 @@ const FlashcardStudy = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-600">Session Progress</span>
-            <span className="text-sm font-medium text-orange-600">{progress}%</span>
+            <span className="text-sm font-medium text-indigo-600">{progress}%</span>
           </div>
-          <div className="w-full bg-gray-100 rounded-full h-2">
-            <div 
-              className="bg-gradient-to-r from-orange-500 to-amber-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
+          <div className="w-full bg-slate-100 rounded-full h-2">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: progress + '%' }}
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full transition-all duration-300 shadow-sm"
             />
           </div>
           <div className="text-right mt-1">
-            <span className="text-xs text-gray-400">{currentIndex + 1} of {shuffledCards.length} cards</span>
+            <span className="text-xs text-gray-400">{currentIndex + 1} of {filteredCards.length} cards</span>
           </div>
         </div>
 
@@ -344,10 +359,10 @@ const FlashcardStudy = () => {
             >
               {/* Front of card - Question */}
               <div 
-                className="w-full bg-white rounded-2xl shadow-lg border border-orange-100 p-8 min-h-[280px] flex flex-col items-center justify-center"
+                className="w-full bg-white rounded-2xl shadow-xl border border-indigo-100 p-8 min-h-[280px] flex flex-col items-center justify-center"
                 style={{ backfaceVisibility: 'hidden' }}
               >
-                <span className="inline-block px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-semibold uppercase tracking-wide mb-6">
+                <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold uppercase tracking-wide mb-6">
                   Question
                 </span>
                 <p className="text-xl md:text-2xl font-medium text-gray-900 text-center leading-relaxed">
@@ -357,7 +372,7 @@ const FlashcardStudy = () => {
 
               {/* Back of card - Answer */}
               <div 
-                className="absolute inset-0 w-full bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl shadow-lg p-8 min-h-[280px] flex flex-col items-center justify-center"
+                className="absolute inset-0 w-full bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl p-8 min-h-[280px] flex flex-col items-center justify-center"
                 style={{ 
                   backfaceVisibility: 'hidden',
                   transform: 'rotateY(180deg)'
@@ -382,23 +397,29 @@ const FlashcardStudy = () => {
         {/* Hint Button */}
         {currentCard?.hint && (
           <div className="mb-6">
-            {showHint ? (
-              <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
-                <div className="flex items-center gap-2 text-amber-700 font-medium mb-1">
+            <AnimatePresence>
+              {showHint ? (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 bg-slate-50 border border-slate-200 rounded-xl shadow-sm"
+                >
+                  <div className="flex items-center gap-2 text-indigo-600 font-medium mb-1">
+                    <Lightbulb className="w-4 h-4" />
+                    Hint
+                  </div>
+                  <p className="text-slate-700">{currentCard.hint}</p>
+                </motion.div>
+              ) : (
+                <button
+                  onClick={() => setShowHint(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-colors mx-auto font-medium"
+                >
                   <Lightbulb className="w-4 h-4" />
-                  Hint
-                </div>
-                <p className="text-amber-800">{currentCard.hint}</p>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowHint(true)}
-                className="flex items-center gap-2 px-5 py-2.5 border border-amber-200 bg-amber-50 text-amber-700 rounded-xl hover:bg-amber-100 transition-colors mx-auto font-medium"
-              >
-                <Lightbulb className="w-4 h-4" />
-                Show Hint
-              </button>
-            )}
+                  Show Hint
+                </button>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
@@ -406,51 +427,51 @@ const FlashcardStudy = () => {
         <div className="flex items-center justify-center gap-4 mb-8">
           <button
             onClick={handleDidntKnow}
-            className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors font-medium shadow-sm"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 px-4 py-3 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all font-medium shadow-md shadow-rose-100"
           >
             <XCircle className="w-5 h-5" />
-            Didn't Know
+            Forgot
           </button>
           <button
             onClick={handleSkip}
-            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium shadow-sm"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-all font-medium shadow-sm"
           >
             <SkipForward className="w-5 h-5" />
-            Skip Card
+            Skip
           </button>
           <button
             onClick={handleKnew}
-            className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors font-medium shadow-sm"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all font-medium shadow-md shadow-emerald-100"
           >
             <CheckCircle2 className="w-5 h-5" />
-            Knew It
+            Mastered
           </button>
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-4">
           <button
             onClick={handlePrevious}
             disabled={currentIndex === 0}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-5 h-5" />
             Previous
           </button>
 
           {/* Card Progress Dots */}
-          <div className="flex items-center gap-1.5 max-w-xs overflow-hidden">
-            {shuffledCards.slice(Math.max(0, currentIndex - 3), Math.min(shuffledCards.length, currentIndex + 4)).map((_, idx) => {
-              const actualIndex = Math.max(0, currentIndex - 3) + idx;
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            {filteredCards.slice(Math.max(0, currentIndex - 2), Math.min(filteredCards.length, currentIndex + 3)).map((_, idx) => {
+              const actualIndex = Math.max(0, currentIndex - 2) + idx;
               return (
                 <div
                   key={actualIndex}
                   className={`w-2 h-2 rounded-full transition-all ${
                     actualIndex === currentIndex 
-                      ? 'w-6 bg-orange-500' 
+                      ? 'w-6 bg-indigo-500' 
                       : actualIndex < currentIndex 
-                        ? 'bg-orange-200' 
-                        : 'bg-gray-200'
+                        ? 'bg-indigo-200' 
+                        : 'bg-slate-200'
                   }`}
                 />
               );
@@ -459,8 +480,8 @@ const FlashcardStudy = () => {
 
           <button
             onClick={handleNext}
-            disabled={currentIndex === shuffledCards.length - 1}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={currentIndex === filteredCards.length - 1}
+            className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Next
             <ChevronRight className="w-5 h-5" />
@@ -468,25 +489,25 @@ const FlashcardStudy = () => {
         </div>
 
         {/* Toolbar */}
-        <div className="mt-6 flex items-center justify-center gap-3">
+        <div className="mt-8 flex items-center justify-center gap-6 border-t border-indigo-50 pt-6">
           <button
             onClick={shuffleCards}
-            className="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+            className="p-3 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
             title="Shuffle cards"
           >
             <Shuffle className="w-5 h-5" />
           </button>
           <button
             onClick={restartStudy}
-            className="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-            title="Restart"
+            className="p-3 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+            title="Restart Session"
           >
             <RotateCcw className="w-5 h-5" />
           </button>
           <button
             onClick={() => navigate('/module2')}
-            className="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-            title="Back to Library"
+            className="p-3 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+            title="Exit to Library"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -494,10 +515,10 @@ const FlashcardStudy = () => {
       </main>
 
       {/* Keyboard Shortcuts Footer */}
-      <footer className="py-4 border-t border-orange-100 bg-white/50">
+      <footer className="py-4 border-t border-indigo-50 bg-white/50">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <p className="text-xs text-gray-400">
-            Use keyboard shortcuts: <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono">←</kbd> Previous | <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono">→</kbd> Next | <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono">Space</kbd> Flip | <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono">H</kbd> Hint
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">
+            Keyboard Shortcuts: <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-mono mx-1">←</kbd> Back | <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-mono mx-1">→</kbd> Next | <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-mono mx-1">Space</kbd> Flip | <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-mono mx-1">H</kbd> Hint
           </p>
         </div>
       </footer>
