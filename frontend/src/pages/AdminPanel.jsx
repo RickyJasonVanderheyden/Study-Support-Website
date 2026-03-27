@@ -13,6 +13,7 @@ const AdminPanel = () => {
     const [users, setUsers] = useState([]);
     const [groups, setGroups] = useState([]);
     const [editingGroup, setEditingGroup] = useState(null);
+    const [editingUser, setEditingUser] = useState(null);
     const [formData, setFormData] = useState({
         email: '',
         registrationNumber: '',
@@ -64,6 +65,23 @@ const AdminPanel = () => {
         }
     };
 
+    const handleUpdateUser = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await API.put(`/auth/${editingUser._id}`, editingUser);
+            toast.success('User updated successfully!');
+            setEditingUser(null);
+            fetchUsers();
+
+            // Note: Updated user won't see changes in their own session until they re-login or refresh their token
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update user');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const deleteGroup = async (id) => {
         if (!window.confirm('Are you sure you want to delete/archive this group?')) return;
         try {
@@ -99,6 +117,28 @@ const AdminPanel = () => {
 
     const handlePreRegister = async (e) => {
         e.preventDefault();
+
+        // 1. Strict Email & IT Number Validation for Students
+        if (formData.role === 'student') {
+            const studentEmailRegex = /^it\d{8,10}@my\.sliit\.lk$/i;
+            if (!studentEmailRegex.test(formData.email.trim())) {
+                toast.error("Student email must match format: ITxxxxxxxx@my.sliit.lk");
+                return;
+            }
+
+            const itNumberRegex = /^it\d{8,10}$/i;
+            if (!itNumberRegex.test(formData.registrationNumber.trim())) {
+                toast.error("IT Number must match format: ITxxxxxxxx");
+                return;
+            }
+        }
+
+        // 2. Password Length Validation (if provided)
+        if (formData.password && formData.password.length < 6) {
+            toast.error("Password must be at least 6 characters long.");
+            return;
+        }
+
         setLoading(true);
         try {
             await API.post('/auth/pre-register', formData);
@@ -117,12 +157,6 @@ const AdminPanel = () => {
             setLoading(false);
         }
     };
-
-    useEffect(() => {
-        if (!formData.registrationNumber && formData.role !== 'student') {
-            setFormData(prev => ({ ...prev, registrationNumber: generateID(prev.role) }));
-        }
-    }, [formData.role]);
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -156,7 +190,7 @@ const AdminPanel = () => {
             {activeTab === 'users' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1">
-                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6 sticky top-24 text-left">
+                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6 sticky top-24 text-left shadow-lg">
                             <div className="flex items-center gap-2 mb-2">
                                 <UserPlus className="text-indigo-600" size={20} />
                                 <h2 className="font-bold text-gray-900">Pre-Register Student</h2>
@@ -337,6 +371,7 @@ const AdminPanel = () => {
                                     <Users size={18} className="text-indigo-600" />
                                     Account Controls
                                 </h3>
+                                <span className="text-[10px] font-bold text-gray-400">Showing {users.length} users</span>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-sm">
@@ -352,7 +387,7 @@ const AdminPanel = () => {
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {users.map((u) => (
-                                            <tr key={u._id} className="hover:bg-gray-50/50 transition-colors">
+                                            <tr key={u._id} className={`hover:bg-gray-50/50 transition-colors ${u.registrationNumber === 'IT21208891' ? 'bg-amber-50/20' : ''}`}>
                                                 <td className="px-6 py-4">
                                                     <p className="font-semibold text-gray-900">{u.name || 'Pending Name'}</p>
                                                     <p className="text-xs text-gray-400">{u.email}</p>
@@ -362,6 +397,10 @@ const AdminPanel = () => {
                                                     {u.role === 'student' && u.year ? (
                                                         <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold">
                                                             {u.year}·{u.semester}·MG{String(u.mainGroup).padStart(2, '0')}·SG{u.subGroup}
+                                                        </span>
+                                                    ) : u.role === 'student' ? (
+                                                        <span className="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded font-bold animate-pulse">
+                                                            Missing Info
                                                         </span>
                                                     ) : (
                                                         <span className="text-[10px] text-gray-300">—</span>
@@ -375,21 +414,21 @@ const AdminPanel = () => {
                                                         {u.role}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    {u.isActivated ? (
-                                                        <span className="flex items-center gap-1 text-emerald-600 text-xs font-bold">
-                                                            <CheckCircle size={12} /> Activated
-                                                        </span>
-                                                    ) : (
-                                                        <span className="flex items-center gap-1 text-amber-600 text-xs font-bold">
-                                                            <Clock size={12} /> Waitlisted
-                                                        </span>
-                                                    )}
-                                                </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button onClick={() => deleteUser(u._id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => setEditingUser({ ...u })}
+                                                            className="p-1.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => deleteUser(u._id)}
+                                                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -419,71 +458,36 @@ const AdminPanel = () => {
                                         <th className="px-6 py-3">Module</th>
                                         <th className="px-6 py-3">Placement</th>
                                         <th className="px-6 py-3">Members</th>
-                                        <th className="px-6 py-3">Created By</th>
-                                        <th className="px-6 py-3">Status</th>
                                         <th className="px-6 py-3 text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
                                     {groups.map((g) => (
                                         <tr key={g._id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <p className="font-semibold text-gray-900">{g.name}</p>
-                                                <p className="text-[10px] text-gray-400 font-mono mt-0.5">{g._id}</p>
-                                            </td>
+                                            <td className="px-6 py-4 font-semibold text-gray-900">{g.name}</td>
                                             <td className="px-6 py-4">
                                                 <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-bold text-[10px] uppercase">
                                                     {g.moduleCode}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold">
-                                                    {g.year}·{g.semester}·MG{String(g.mainGroup).padStart(2, '0')}·SG{g.subGroup}
-                                                </span>
+                                            <td className="px-6 py-4 text-xs font-mono">
+                                                {g.year}·{g.semester}·MG{String(g.mainGroup).padStart(2, '0')}·SG{g.subGroup}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="font-bold text-gray-900">{g.members?.filter(m => m.status === 'active').length}</span>
-                                                    <span className="text-gray-400">/ {g.maxMembers}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <p className="text-xs font-medium text-gray-700">{g.createdBy?.name || 'Unknown'}</p>
-                                                <p className="text-[10px] text-gray-400">{g.createdBy?.email}</p>
-                                            </td>
-                                            <td className="px-6 py-4 capitalize">
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${g.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                                                    {g.status}
-                                                </span>
+                                                {g.members?.filter(m => m.status === 'active').length} / {g.maxMembers}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        onClick={() => setEditingGroup({ ...g })}
-                                                        className="p-1.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                                        title="Edit Group"
-                                                    >
+                                                    <button onClick={() => setEditingGroup({ ...g })} className="p-1.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
                                                         <Edit size={16} />
                                                     </button>
-                                                    <button
-                                                        onClick={() => deleteGroup(g._id)}
-                                                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                                        title="Delete Group"
-                                                    >
+                                                    <button onClick={() => deleteGroup(g._id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </div>
                                             </td>
                                         </tr>
                                     ))}
-                                    {groups.length === 0 && (
-                                        <tr>
-                                            <td colSpan="7" className="p-12 text-center text-gray-400">
-                                                <Search size={32} className="mx-auto mb-2 opacity-20" />
-                                                No study groups found in the system.
-                                            </td>
-                                        </tr>
-                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -491,137 +495,138 @@ const AdminPanel = () => {
                 </div>
             )}
 
-            {/* Edit Group Modal */}
-            {editingGroup && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 text-left">
+            {/* Edit User Modal */}
+            {editingUser && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[65] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 text-left">
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-indigo-600 text-white">
                             <h3 className="font-bold text-lg flex items-center gap-2">
                                 <Edit size={20} />
-                                Edit Group: {editingGroup.name}
+                                Edit User Profile
                             </h3>
-                            <button onClick={() => setEditingGroup(null)} className="hover:bg-white/20 p-1 rounded-lg transition-colors">
+                            <button onClick={() => setEditingUser(null)} className="hover:bg-white/20 p-1 rounded-lg transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleUpdateGroup} className="p-6 space-y-5">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="col-span-2">
-                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Group Name</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={editingGroup.name}
-                                        onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    />
-                                </div>
-                                <div className="col-span-2">
-                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Description</label>
-                                    <textarea
-                                        value={editingGroup.description || ''}
-                                        onChange={(e) => setEditingGroup({ ...editingGroup, description: e.target.value })}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-20 resize-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Module Code</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={editingGroup.moduleCode}
-                                        onChange={(e) => setEditingGroup({ ...editingGroup, moduleCode: e.target.value.toUpperCase() })}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-600"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Status</label>
-                                    <select
-                                        value={editingGroup.status}
-                                        onChange={(e) => setEditingGroup({ ...editingGroup, status: e.target.value })}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="completed">Completed</option>
-                                        <option value="archived">Archived</option>
-                                    </select>
-                                </div>
+                        <form onSubmit={handleUpdateUser} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Full Name</label>
+                                <input
+                                    type="text"
+                                    value={editingUser.name || ''}
+                                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">IT Number / ID</label>
+                                <input
+                                    type="text"
+                                    value={editingUser.registrationNumber || ''}
+                                    onChange={(e) => setEditingUser({ ...editingUser, registrationNumber: e.target.value })}
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
                             </div>
 
-                            <div className="bg-gray-50 p-4 rounded-xl space-y-3 border border-gray-100">
-                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Academic Placement</p>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Year</label>
-                                        <select
-                                            value={editingGroup.year || ''}
-                                            onChange={(e) => setEditingGroup({ ...editingGroup, year: e.target.value })}
-                                            className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                                        >
-                                            <option value="Y1">Y1</option>
-                                            <option value="Y2">Y2</option>
-                                            <option value="Y3">Y3</option>
-                                            <option value="Y4">Y4</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Semester</label>
-                                        <select
-                                            value={editingGroup.semester || ''}
-                                            onChange={(e) => setEditingGroup({ ...editingGroup, semester: e.target.value })}
-                                            className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                                        >
-                                            <option value="S1">S1</option>
-                                            <option value="S2">S2</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Main Group</label>
-                                        <select
-                                            value={editingGroup.mainGroup || ''}
-                                            onChange={(e) => setEditingGroup({ ...editingGroup, mainGroup: parseInt(e.target.value) })}
-                                            className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                                        >
-                                            {[...Array(12)].map((_, i) => (
-                                                <option key={i + 1} value={i + 1}>MG{String(i + 1).padStart(2, '0')}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sub Group</label>
-                                        <select
-                                            value={editingGroup.subGroup || ''}
-                                            onChange={(e) => setEditingGroup({ ...editingGroup, subGroup: parseInt(e.target.value) })}
-                                            className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                                        >
-                                            <option value="1">SG1</option>
-                                            <option value="2">SG2</option>
-                                        </select>
+                            {editingUser.role === 'student' && (
+                                <div className="bg-gray-50 p-4 rounded-xl space-y-3 border border-gray-100">
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Academic Placement</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Year</label>
+                                            <select
+                                                value={editingUser.year || ''}
+                                                onChange={(e) => setEditingUser({ ...editingUser, year: e.target.value })}
+                                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            >
+                                                <option value="">Select</option>
+                                                <option value="Y1">Y1</option>
+                                                <option value="Y2">Y2</option>
+                                                <option value="Y3">Y3</option>
+                                                <option value="Y4">Y4</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Semester</label>
+                                            <select
+                                                value={editingUser.semester || ''}
+                                                onChange={(e) => setEditingUser({ ...editingUser, semester: e.target.value })}
+                                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            >
+                                                <option value="">Select</option>
+                                                <option value="S1">S1</option>
+                                                <option value="S2">S2</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Main Group</label>
+                                            <select
+                                                value={editingUser.mainGroup || ''}
+                                                onChange={(e) => setEditingUser({ ...editingUser, mainGroup: e.target.value })}
+                                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            >
+                                                <option value="">Select</option>
+                                                {[...Array(12)].map((_, i) => (
+                                                    <option key={i + 1} value={i + 1}>MG{String(i + 1).padStart(2, '0')}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sub Group</label>
+                                            <select
+                                                value={editingUser.subGroup || ''}
+                                                onChange={(e) => setEditingUser({ ...editingUser, subGroup: e.target.value })}
+                                                className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            >
+                                                <option value="">Select</option>
+                                                <option value="1">SG1</option>
+                                                <option value="2">SG2</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
-                            <div className="flex gap-3 pt-2">
+                            <div className="flex gap-3 pt-4">
                                 <button
                                     type="button"
-                                    onClick={() => setEditingGroup(null)}
-                                    className="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors"
+                                    onClick={() => setEditingUser(null)}
+                                    className="flex-1 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-100"
+                                    className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors"
                                 >
-                                    {loading ? 'Saving...' : (
-                                        <>
-                                            <Save size={18} />
-                                            Update Group
-                                        </>
-                                    )}
+                                    {loading ? 'Saving...' : 'Update User'}
                                 </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Group Modal */}
+            {editingGroup && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[65] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 text-left">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-indigo-600 text-white">
+                            <h3 className="font-bold text-lg">Edit Group: {editingGroup.name}</h3>
+                            <button onClick={() => setEditingGroup(null)}><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleUpdateGroup} className="p-6 space-y-4">
+                            <input
+                                type="text"
+                                value={editingGroup.name}
+                                onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm"
+                            />
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setEditingGroup(null)} className="flex-1 py-2 bg-gray-100 rounded-xl">Cancel</button>
+                                <button type="submit" className="flex-1 py-2 bg-indigo-600 text-white rounded-xl">Save</button>
                             </div>
                         </form>
                     </div>
@@ -632,3 +637,4 @@ const AdminPanel = () => {
 };
 
 export default AdminPanel;
+
