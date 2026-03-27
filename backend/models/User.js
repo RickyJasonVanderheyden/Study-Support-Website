@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Please provide a name']
+    required: false, // Optional until activation
   },
   email: {
     type: String,
@@ -15,14 +15,18 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Please provide a password'],
-    minlength: 6,
+    required: false, // Optional until activation
     select: false
   },
   registrationNumber: {
     type: String,
-    required: [true, 'Please provide registration number'],
-    unique: true
+    required: false,
+    unique: true,
+    sparse: true
+  },
+  isActivated: {
+    type: Boolean,
+    default: false
   },
   groupNumber: {
     type: String,
@@ -33,6 +37,37 @@ const userSchema = new mongoose.Schema({
     enum: ['student', 'instructor', 'admin'],
     default: 'student'
   },
+  year: {
+    type: String,
+    enum: ['Y1', 'Y2', 'Y3', 'Y4'],
+    default: null
+  },
+  semester: {
+    type: String,
+    enum: ['S1', 'S2'],
+    default: null
+  },
+  mainGroup: {
+    type: Number,
+    min: 1,
+    max: 12,
+    default: null
+  },
+  subGroup: {
+    type: Number,
+    min: 1,
+    max: 2,
+    default: null
+  },
+  skills: {
+    type: [String],
+    default: []
+  },
+  bio: {
+    type: String,
+    maxlength: 300,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -40,14 +75,15 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
 // Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

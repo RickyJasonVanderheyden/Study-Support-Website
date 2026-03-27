@@ -18,8 +18,8 @@ app.use('/uploads', express.static('uploads'));
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+  .then(() => console.log(' MongoDB connected'))
+  .catch(err => console.error(' MongoDB connection error:', err));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -45,11 +45,12 @@ app.use('/api/module3/ratings', require('./routes/peer sessions/ratings'));
 app.use('/api/module4/groups', require('./routes/MemberFinder/groups'));
 app.use('/api/module4/members', require('./routes/MemberFinder/members'));
 app.use('/api/module4/invitations', require('./routes/MemberFinder/invitations'));
+app.use('/api/module4/activity', require('./routes/MemberFinder/activity'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'Server is running',
     timestamp: new Date().toISOString()
   });
@@ -58,7 +59,7 @@ app.get('/api/health', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Something went wrong!',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });

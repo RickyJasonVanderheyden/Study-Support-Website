@@ -27,3 +27,10 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Docker configuration
+backend/Dockerfile
+backend/.dockerignore
+frontend/Dockerfile
+frontend/.dockerignore
+docker-compose.yml

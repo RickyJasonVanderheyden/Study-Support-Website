@@ -5,23 +5,50 @@ import { Toaster } from 'react-hot-toast';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminLogin from './pages/AdminLogin';
+import AdminRegister from './pages/AdminRegister';
+import InstructorLogin from './pages/InstructorLogin';
+import InstructorRegister from './pages/InstructorRegister';
 import Module1Page from './pages/Module1Page';
 import Module2Page from './pages/Module2Page';
 import Module3Page from './pages/Module3Page';
 import Module4Page from './pages/Module4Page';
+import GroupDetail from './pages/GroupDetail';
+import AdminPanel from './pages/AdminPanel';
+
+import Layout from './components/Layout';
 
 function App() {
+  const AuthenticatedLayout = ({ children }) => (
+    <Layout>
+      {children}
+    </Layout>
+  );
+
   return (
     <BrowserRouter>
       <div className="min-h-screen">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<AuthenticatedLayout><Home /></AuthenticatedLayout>} />
+
+          {/* Student Auth */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/module1" element={<Module1Page />} />
-          <Route path="/module2" element={<Module2Page />} />
-          <Route path="/module3" element={<Module3Page />} />
-          <Route path="/module4" element={<Module4Page />} />
+
+          {/* Admin Auth */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/register" element={<AdminRegister />} />
+
+          {/* Instructor Auth */}
+          <Route path="/instructor/login" element={<InstructorLogin />} />
+          <Route path="/instructor/register" element={<InstructorRegister />} />
+
+          <Route path="/module1" element={<AuthenticatedLayout><Module1Page /></AuthenticatedLayout>} />
+          <Route path="/module2" element={<AuthenticatedLayout><Module2Page /></AuthenticatedLayout>} />
+          <Route path="/module3" element={<AuthenticatedLayout><Module3Page /></AuthenticatedLayout>} />
+          <Route path="/module4" element={<AuthenticatedLayout><Module4Page /></AuthenticatedLayout>} />
+          <Route path="/module4/group/:id" element={<AuthenticatedLayout><GroupDetail /></AuthenticatedLayout>} />
+          <Route path="/admin" element={<AuthenticatedLayout><AdminPanel /></AuthenticatedLayout>} />
         </Routes>
       </div>
       <Toaster position="top-right" />
