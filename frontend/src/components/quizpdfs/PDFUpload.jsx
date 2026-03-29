@@ -1,4 +1,13 @@
 import React, { useState, useCallback } from 'react';
+/*
+ * ══════════════════════════════════════════════════════
+ *  MODULE 2 — THEMED COMPONENT
+ *  Palette: Soft Mint / Warm Cream / Forest Green / Amber-Orange
+ *  --cream: #F7F4EE  --mint: #D6ECD8  --forest: #1E4D35
+ *  --cta: #E8820C    --surface: #FFFDF8
+ *  Font: DM Sans (loaded by Module2Page)
+ * ══════════════════════════════════════════════════════
+ */
 import { Upload, FileText, Loader2, Settings, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../../services/api';
