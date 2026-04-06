@@ -4,12 +4,34 @@ const authMiddleware = require('../../middleware/authMiddleware');
 const Quiz = require('../../models/Quiz');
 const QuizAttempt = require('../../models/QuizAttempt');
 
+// Optional auth for mixed testing + authenticated flow.
+const optionalAuth = async (req, _res, next) => {
+  const hasAuthHeader = !!req.header('Authorization');
+  if (!hasAuthHeader) {
+    return next();
+  }
+
+  try {
+    await new Promise((resolve, reject) => {
+      authMiddleware(req, {
+        status: () => ({
+          json: (payload) => reject(new Error(payload?.error || 'Unauthorized'))
+        })
+      }, resolve);
+    });
+  } catch (_e) {
+    req.user = null;
+  }
+
+  next();
+};
+
 /**
  * @route   POST /api/module2/attempts/:quizId/submit
  * @desc    Submit quiz answers and get results
  * @access  Public (for testing)
  */
-router.post('/:quizId/submit', async (req, res) => {
+router.post('/:quizId/submit', optionalAuth, async (req, res) => {
   try {
     const { answers, timeTaken } = req.body;
     

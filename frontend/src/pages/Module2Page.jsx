@@ -199,8 +199,12 @@ const Module2Page = () => {
         api.get('/module2/generate/audio').catch(() => ({ data: [] }))
       ]);
 
+      const totalQuizzesFromChallenges = contentRes.data?.quizzes?.length || 0;
+
       setProgressData({
         ...progressRes.data.progress,
+        totalQuizzes: totalQuizzesFromChallenges,
+        totalQuizzesCreated: totalQuizzesFromChallenges,
         totalFlashcardSets: flashcardsRes.data?.length || 0,
         totalMindMaps: mindmapsRes.data?.length || 0,
         totalAudioNotes: audioRes.data?.length || 0
@@ -1538,7 +1542,7 @@ const Module2Page = () => {
                         <BookOpen className="w-4 h-4 text-[#C96800]" />
                         <span className="text-xs text-[#C96800] font-bold uppercase tracking-wide">Quizzes</span>
                       </div>
-                      <p className="text-2xl font-black text-[#1E4D35]">{progressData.totalQuizzes || 0}</p>
+                      <p className="text-2xl font-black text-[#1E4D35]">{progressData.totalQuizzesCreated ?? progressData.totalQuizzes ?? 0}</p>
                     </div>
                     <div className="p-4 bg-[#F7F4EE] rounded-xl border border-[#D8E8DC]">
                       <div className="flex items-center gap-2 mb-2">

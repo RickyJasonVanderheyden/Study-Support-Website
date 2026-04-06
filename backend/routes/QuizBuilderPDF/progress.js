@@ -4,33 +4,75 @@ const authMiddleware = require('../../middleware/authMiddleware');
 const Quiz = require('../../models/Quiz');
 const QuizAttempt = require('../../models/QuizAttempt');
 
+// Optional auth: if token is present and valid, attach req.user; otherwise continue as public/testing.
+const optionalAuth = async (req, _res, next) => {
+  const hasAuthHeader = !!req.header('Authorization');
+  if (!hasAuthHeader) {
+    return next();
+  }
+
+  try {
+    await new Promise((resolve, reject) => {
+      authMiddleware(req, {
+        status: () => ({
+          json: (payload) => reject(new Error(payload?.error || 'Unauthorized'))
+        })
+      }, resolve);
+    });
+  } catch (_e) {
+    // Keep endpoint usable in testing mode when token is invalid/missing.
+    req.user = null;
+  }
+
+  next();
+};
+
 /**
  * @route   GET /api/module2/progress
  * @desc    Get learning progress overview
  * @access  Public (for testing)
  */
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   try {
-    // Get all quizzes (no user filter for testing)
-    const quizzes = await Quiz.find();
-    
-    // Get all attempts
-    const attempts = await QuizAttempt.find()
+    let scope = req.user?.id ? 'user' : 'global-testing';
+
+    // Prefer strict user scope when authenticated.
+    let attempts = await QuizAttempt.find(req.user?.id ? { user: req.user.id } : {})
       .populate('quiz', 'title subject difficulty')
       .sort({ completedAt: -1 });
 
+    // Legacy fallback: old test attempts were saved with user=null.
+    if (req.user?.id && attempts.length === 0) {
+      attempts = await QuizAttempt.find({
+        $or: [{ user: req.user.id }, { user: null }]
+      })
+        .populate('quiz', 'title subject difficulty')
+        .sort({ completedAt: -1 });
+      scope = 'user-legacy-fallback';
+    }
+
+    let quizzes = await Quiz.find(scope === 'user' ? { user: req.user.id } : {});
+
+    if (scope === 'user' && quizzes.length === 0) {
+      quizzes = await Quiz.find({ $or: [{ user: req.user.id }, { user: null }] });
+      scope = 'user-legacy-fallback';
+    }
+
+    // Protect against dangling references (attempts whose quiz was deleted).
+    const validAttempts = attempts.filter((a) => a.quiz);
+
     // Calculate overall stats
     const totalQuizzes = quizzes.length;
-    const totalAttempts = attempts.length;
-    const uniqueQuizzesTaken = new Set(attempts.map(a => a.quiz._id.toString())).size;
+    const totalAttempts = validAttempts.length;
+    const uniqueQuizzesTaken = new Set(validAttempts.map(a => a.quiz._id.toString())).size;
     
     const averageScore = totalAttempts > 0
-      ? Math.round(attempts.reduce((sum, a) => sum + a.percentage, 0) / totalAttempts)
+      ? Math.round(validAttempts.reduce((sum, a) => sum + (a.percentage || 0), 0) / totalAttempts)
       : 0;
 
     // Calculate subject-wise performance
     const subjectStats = {};
-    attempts.forEach(attempt => {
+    validAttempts.forEach(attempt => {
       const subject = attempt.quiz.subject || 'General';
       if (!subjectStats[subject]) {
         subjectStats[subject] = {
@@ -40,10 +82,10 @@ router.get('/', async (req, res) => {
         };
       }
       subjectStats[subject].attempts++;
-      subjectStats[subject].totalScore += attempt.percentage;
+      subjectStats[subject].totalScore += attempt.percentage || 0;
       subjectStats[subject].highestScore = Math.max(
         subjectStats[subject].highestScore, 
-        attempt.percentage
+        attempt.percentage || 0
       );
     });
 
@@ -56,16 +98,16 @@ router.get('/', async (req, res) => {
     }));
 
     // Get recent activity (last 10 attempts)
-    const recentActivity = attempts.slice(0, 10).map(a => ({
+    const recentActivity = validAttempts.slice(0, 10).map(a => ({
       quizId: a.quiz._id,
       quizTitle: a.quiz.title,
-      score: a.percentage,
+      score: a.percentage || 0,
       completedAt: a.completedAt
     }));
 
     // Calculate streak (consecutive days with attempts)
     let streak = 0;
-    if (attempts.length > 0) {
+    if (validAttempts.length > 0) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
@@ -77,7 +119,7 @@ router.get('/', async (req, res) => {
         const dayEnd = new Date(currentDate);
         dayEnd.setDate(dayEnd.getDate() + 1);
         
-        hasAttemptOnDay = attempts.some(a => {
+        hasAttemptOnDay = validAttempts.some(a => {
           const attemptDate = new Date(a.completedAt);
           return attemptDate >= dayStart && attemptDate < dayEnd;
         });
@@ -97,7 +139,8 @@ router.get('/', async (req, res) => {
         averageScore,
         streak,
         subjectPerformance,
-        recentActivity
+        recentActivity,
+        scope
       }
     });
   } catch (error) {
