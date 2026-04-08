@@ -6,7 +6,7 @@ const User = require('../models/User');
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, registrationNumber, groupNumber, role } = req.body;
+    const { name, email, password, registrationNumber, mobileNumber, adminToken } = req.body;
 
     const existingUser = await User.findOne({ 
       $or: [{ email }, { registrationNumber }] 
@@ -23,8 +23,9 @@ router.post('/register', async (req, res) => {
       email,
       password,
       registrationNumber,
-      groupNumber,
-      role: role || 'student'
+      mobileNumber,
+      roleRequest: adminToken && adminToken === process.env.SESSION_LEAD_SECRET ? 'pending_session_lead' : 'none',
+      role: (process.env.ADMIN_EMAILS || '').split(',').includes(email) ? 'super_admin' : 'student'
     });
 
     const token = jwt.sign(
@@ -41,7 +42,8 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         registrationNumber: user.registrationNumber,
-        role: user.role
+        role: user.role,
+        roleRequest: user.roleRequest
       }
     });
   } catch (error) {
@@ -78,7 +80,8 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         registrationNumber: user.registrationNumber,
-        role: user.role
+        role: user.role,
+        roleRequest: user.roleRequest
       }
     });
   } catch (error) {

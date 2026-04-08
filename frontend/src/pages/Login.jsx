@@ -21,17 +21,30 @@ const Login = () => {
       
       const { user, token } = data;
       
-      // Prevent students from logging in through the admin tab.
-      if (roleTab === 'admin' && user.role !== 'admin') {
-        toast.error('Access denied. You do not have admin privileges.');
+      // Prevent students from logging in through the session_lead tab.
+      if (roleTab === 'session_lead' && user.role !== 'session_lead' && user.role !== 'super_admin') {
+        toast.error('Access denied. You do not have Session Lead privileges.');
         setLoading(false);
         return;
       }
 
-      // Instructors or students logging in via student tab is fine, but let's be strict if they specified admin.
-      if (roleTab === 'student' && user.role === 'admin') {
-        // Just a warning or we could block it. Let's redirect to admin anyway.
-        toast.success('Logged in as Admin');
+      // Prevent pending session leads from logging in
+      if (user.roleRequest === 'pending_session_lead') {
+        toast.error('Your Session Lead request is pending approval. Please wait for admin approval.');
+        setLoading(false);
+        return;
+      }
+
+      // Prevent rejected session leads from logging in
+      if (user.roleRequest === 'rejected') {
+        toast.error('Your Session Lead request was rejected. Contact admin for more information.');
+        setLoading(false);
+        return;
+      }
+
+      // Instructors or students logging in via student tab is fine.
+      if (roleTab === 'student' && user.role === 'session_lead') {
+        toast.success('Logged in as Session Lead');
       } else {
         toast.success(`Logged in as ${user.role || 'student'}`);
       }
@@ -95,11 +108,11 @@ const Login = () => {
             <button
               type="button"
               className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all duration-200 ${
-                roleTab === 'admin' ? 'bg-white shadow-sm text-[#276332]' : 'text-slate-500 hover:text-[#276332]'
+                roleTab === 'session_lead' ? 'bg-white shadow-sm text-[#276332]' : 'text-slate-500 hover:text-[#276332]'
               }`}
-              onClick={() => setRoleTab('admin')}
+              onClick={() => setRoleTab('session_lead')}
             >
-              Admin
+              Session Lead
             </button>
           </div>
 
@@ -125,7 +138,7 @@ const Login = () => {
               />
             </div>
             <button type="submit" disabled={loading} className="w-full bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold py-3.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-2">
-              {loading ? 'Logging in...' : `Log in as ${roleTab === 'admin' ? 'Admin' : 'Student'}`}
+              {loading ? 'Logging in...' : `Log in as ${roleTab === 'session_lead' ? 'Session Lead' : 'Student'}`}
             </button>
             <p className="text-center text-sm text-slate-500 mt-6 font-medium">
               Don't have an account?{' '}
@@ -137,6 +150,15 @@ const Login = () => {
                 Register here
               </button>
             </p>
+            <div className="pt-4 mt-6 border-t border-gray-100">
+              <button
+                type="button"
+                className="w-full text-center text-xs text-slate-400 hover:text-slate-700 font-medium transition-colors"
+                onClick={() => navigate('/boss-admin-login')}
+              >
+                Access Boss Admin Portal
+              </button>
+            </div>
           </form>
         </div>
       </div>

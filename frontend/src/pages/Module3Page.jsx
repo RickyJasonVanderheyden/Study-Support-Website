@@ -208,12 +208,12 @@ const Module3Page = () => {
 
   const handleLoadUserSessions = async () => {
     if (!joinedEmail.trim()) {
-      return toast.error(userRole === 'admin'
+      return toast.error(['session_lead', 'super_admin'].includes(userRole)
         ? 'Enter your email to load hosted sessions'
         : 'Unable to load saved sessions. Please sign in again to refresh your account.'
       );
     }
-    if (userRole === 'admin') {
+    if (['session_lead', 'super_admin'].includes(userRole)) {
       setActiveTab('joined');
     } else {
       try {
@@ -367,7 +367,7 @@ const Module3Page = () => {
 
   const sortedSessions = useMemo(() => {
     const base = activeTab === 'joined'
-      ? (userRole === 'admin'
+      ? (['session_lead', 'super_admin'].includes(userRole)
           ? sessions.filter((item) => item.hostEmail?.toLowerCase() === joinedEmail.trim().toLowerCase())
           : sessions.filter((item) => myJoinedIds.includes(item._id)))
       : sessions;
@@ -425,7 +425,7 @@ const Module3Page = () => {
             <div className="w-full md:w-1/2 flex justify-center md:justify-end items-center p-8 md:p-0 md:pr-16 relative animate-float">
               {/* Creative Image Frame */}
               <div className="relative w-64 h-64 lg:w-80 lg:h-80 xl:w-96 xl:h-96 rounded-[3rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[6px] border-white/10 transform rotate-6 hover:-rotate-2 transition-all duration-700 ease-out cursor-pointer group flex-shrink-0">
-                <img src={userRole === 'admin' ? "/admin_dashboard.png" : "/peer_study_session.png"} alt={userRole === 'admin' ? "Admin Dashboard" : "Students studying together"} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 ease-out" />
+                <img src={['session_lead', 'super_admin'].includes(userRole) ? "/admin_dashboard.png" : "/peer_study_session.png"} alt={['session_lead', 'super_admin'].includes(userRole) ? "Admin Dashboard" : "Students studying together"} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 ease-out" />
                 <div className="absolute inset-0 bg-gradient-to-tr from-[#173e1f]/40 to-transparent pointer-events-none opacity-60"></div>
                 <div className="absolute inset-0 border-[4px] border-white/20 rounded-[2.5rem] pointer-events-none"></div>
               </div>
@@ -433,7 +433,7 @@ const Module3Page = () => {
           </div>
         </div>
 
-        {userRole === 'admin' && (
+        {['session_lead', 'super_admin'].includes(userRole) && (
           <SessionForm
             value={sessionForm}
             errors={formErrors}
@@ -459,7 +459,7 @@ const Module3Page = () => {
                 <option value="seats_desc">Most Joined</option>
               </select>
               <div className="flex gap-2 items-center">
-                {userRole === 'admin' ? (
+                {['session_lead', 'super_admin'].includes(userRole) ? (
                   <>
                     <input
                       className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332] flex-1 min-w-0"
@@ -477,7 +477,7 @@ const Module3Page = () => {
             </div>
             <div className="flex gap-3 mt-4">
               <button className={`px-5 py-2 text-sm transition-all border-2 ${activeTab === 'all' ? 'bg-[#556B2F] border-[#556B2F] text-white font-bold shadow-sm rounded-lg' : 'bg-transparent border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:border-[#556B2F] hover:text-white font-bold rounded-lg'}`} onClick={() => setActiveTab('all')}>All Sessions</button>
-              <button className={`px-5 py-2 text-sm transition-all border-2 ${activeTab === 'joined' ? 'bg-[#556B2F] border-[#556B2F] text-white font-bold shadow-sm rounded-lg' : 'bg-transparent border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:border-[#556B2F] hover:text-white font-bold rounded-lg'}`} onClick={() => setActiveTab('joined')}>{userRole === 'admin' ? 'My Hosted Sessions' : 'My Joined Sessions'}</button>
+              <button className={`px-5 py-2 text-sm transition-all border-2 ${activeTab === 'joined' ? 'bg-[#556B2F] border-[#556B2F] text-white font-bold shadow-sm rounded-lg' : 'bg-transparent border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:border-[#556B2F] hover:text-white font-bold rounded-lg'}`} onClick={() => setActiveTab('joined')}>{['session_lead', 'super_admin'].includes(userRole) ? 'My Hosted Sessions' : 'My Joined Sessions'}</button>
             </div>
           </Card>
 
@@ -491,7 +491,7 @@ const Module3Page = () => {
                 {pagedSessions.map((session) => (
                   <div key={session._id} className="space-y-3">
                     <SessionCard session={session} onOpen={openSessionDetail} />
-                    {userRole === 'admin' && (
+                    {['session_lead', 'super_admin'].includes(userRole) && (
                       <div className="flex gap-3">
                         <Button size="sm" variant="secondary" className="bg-white border-2 border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:text-white hover:border-[#556B2F] font-bold" onClick={() => startEditSession(session)}>Edit</Button>
                         <Button size="sm" variant="danger" className="bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 font-bold" onClick={() => handleDeleteSession(session)}>Delete</Button>

@@ -21,6 +21,11 @@ const sessionBookingSchema = new mongoose.Schema(
       lowercase: true,
       maxlength: 120,
     },
+    studentMobile: {
+      type: String,
+      required: [true, 'Student mobile number is required'],
+      match: [/^\+94\d{9}$/, 'Please provide a valid Sri Lankan mobile number (+94XXXXXXXXX)']
+    },
     status: {
       type: String,
       enum: ['joined', 'cancelled'],

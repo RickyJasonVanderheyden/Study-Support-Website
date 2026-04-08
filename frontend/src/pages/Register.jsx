@@ -12,8 +12,8 @@ const Register = () => {
     email: '',
     password: '',
     registrationNumber: '',
-    groupNumber: '',
-    role: 'student',
+    mobileNumber: '',
+    adminToken: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -35,8 +35,8 @@ const Register = () => {
       case 'registrationNumber':
         if (value && !/^[A-Za-z]{2}\d{8}$/.test(value)) errorMsg = 'Must be 2 letters followed by 8 digits (e.g., IT12345678).';
         break;
-      case 'groupNumber':
-        if (value && value.length > 10) errorMsg = 'Group Number max length is 10 characters.';
+      case 'mobileNumber':
+        if (value && !/^\+94\d{9}$/.test(value)) errorMsg = 'Must be a valid Sri Lankan number (+94XXXXXXXXX).';
         break;
       default:
         break;
@@ -60,7 +60,7 @@ const Register = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { newErrors.email = 'Please enter a valid email address.'; isValid = false; }
     if (formData.password.length < 6) { newErrors.password = 'Password must be at least 6 characters.'; isValid = false; }
     if (!/^[A-Za-z]{2}\d{8}$/.test(formData.registrationNumber)) { newErrors.registrationNumber = 'Must be 2 letters followed by 8 digits (e.g., IT12345678).'; isValid = false; }
-    if (formData.groupNumber && formData.groupNumber.length > 10) { newErrors.groupNumber = 'Max length is 10 characters.'; isValid = false; }
+    if (!/^\+94\d{9}$/.test(formData.mobileNumber)) { newErrors.mobileNumber = 'Must be a valid Sri Lankan number (+94XXXXXXXXX).'; isValid = false; }
     
     setErrors(newErrors);
     if (!isValid) return toast.error("Please fix the highlighted errors before submitting.");
@@ -71,10 +71,18 @@ const Register = () => {
       const { data } = await API.post('/auth/register', formData);
       const { user, token } = data;
       
-      toast.success(`Registered successfully as ${user.role || 'student'}`);
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      navigate('/module3');
+      if (user.roleRequest === 'pending_session_lead') {
+        toast.success('Registered. Session Lead status is pending Super Admin review.', { duration: 5000 });
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        navigate('/pending-approval');
+        return;
+      } else {
+        toast.success(`Registered successfully as ${user.role || 'student'}`);
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        navigate('/module3');
+      }
     } catch (error) {
       console.error(error);
       const networkError = error.message === 'Network Error' ? 'Backend server is not running or offline' : '';
@@ -168,28 +176,26 @@ const Register = () => {
 
             <div>
               <input
-                className={`rounded-xl border ${errors.groupNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-200 focus:border-[#276332] focus:ring-[#276332]'} bg-gray-50 text-slate-900 placeholder-gray-400 w-full py-3 px-4 transition-all`}
+                className={`rounded-xl border ${errors.mobileNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-200 focus:border-[#276332] focus:ring-[#276332]'} bg-gray-50 text-slate-900 placeholder-gray-400 w-full py-3 px-4 transition-all`}
                 type="text"
-                name="groupNumber"
-                placeholder="Group Number (Optional)"
-                value={formData.groupNumber}
+                name="mobileNumber"
+                placeholder="Mobile Number (e.g. +94712345678)"
+                value={formData.mobileNumber}
                 onChange={handleChange}
+                required
               />
-              {errors.groupNumber && <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors.groupNumber}</p>}
+              {errors.mobileNumber && <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors.mobileNumber}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Select Role</label>
-              <select
-                className="rounded-xl border border-gray-200 bg-gray-50 text-slate-900 focus:border-[#276332] focus:ring-[#276332] w-full py-3 px-4 transition-all"
-                name="role"
-                value={formData.role}
+              <input
+                className="rounded-xl border border-gray-200 focus:border-[#276332] focus:ring-[#276332] bg-emerald-50/50 text-slate-900 placeholder-emerald-800/40 w-full py-3 px-4 transition-all"
+                type="password"
+                name="adminToken"
+                placeholder="Session Lead Secret Token (Optional)"
+                value={formData.adminToken}
                 onChange={handleChange}
-                required
-              >
-                <option value="student">Student</option>
-                <option value="admin">Admin</option>
-              </select>
+              />
             </div>
 
             <button type="submit" disabled={loading} className="w-full bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold py-3.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-4">
