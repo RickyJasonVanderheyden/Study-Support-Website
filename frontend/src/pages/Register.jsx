@@ -1,154 +1,235 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { ShieldCheck, Info } from 'lucide-react';
-import Card from '../components/common/Card';
-import Button from '../components/common/Button';
+import { Mail, Lock, User, Shield, GraduationCap, CheckCircle, ArrowRight, Briefcase } from 'lucide-react';
 import API from '../services/api';
 
 const Register = () => {
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors } } = useForm();
+    const navigate = useNavigate();
+    const [loading, setLoading] = useState(false);
+    const { register, handleSubmit, formState: { errors } } = useForm();
 
-  const onSubmit = async (data) => {
-    setLoading(true);
-    try {
-      const response = await API.post('/auth/register', data);
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      toast.success('Account activated successfully!');
-      navigate('/');
-    } catch (error) {
-      toast.error(error.response?.data?.error || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const onSubmit = async (data) => {
+        setLoading(true);
+        try {
+            const response = await API.post('/auth/register', data);
+            
+            const { user, token } = response.data;
+            toast.success(`Welcome to LearnLoop, ${user.name}!`);
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            // Redirect to appropriate landing page
+            navigate('/module3'); 
+        } catch (error) {
+            console.error(error);
+            toast.error(error.response?.data?.error || 'Registration failed. Please check your details.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card title="Activate Student Account" className="w-full max-w-md shadow-xl border-t-4 border-indigo-600 text-left">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Full Name</label>
-            <input
-              {...register('name', { required: 'Name is required' })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white p-2 border"
-              placeholder="Full Name"
-            />
-            {errors.name && <span className="text-red-500 text-xs">{errors.name.message}</span>}
-          </div>
+    return (
+        <div className="min-h-screen flex font-sans bg-white">
+            {/* Left Side: Branding & Info */}
+            <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-[#EAF4ED] to-[#FDFCF9] flex-col items-center justify-center p-12 relative overflow-hidden text-left">
+                <div className="absolute top-20 left-20 w-80 h-80 bg-[#276332] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
+                <div className="absolute bottom-20 right-20 w-72 h-72 bg-[#F59E0B] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">SLIIT Email Address</label>
-            <input
-              {...register('email', {
-                required: 'Email is required',
-                pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' }
-              })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white p-2 border"
-              placeholder="email@my.sliit.lk"
-            />
-            {errors.email && <span className="text-red-500 text-xs">{errors.email.message}</span>}
-          </div>
+                <div className="relative z-10 space-y-10 max-w-lg">
+                    <div className="space-y-4">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100/50 text-[#276332] rounded-full text-sm font-bold border border-emerald-200/50 shadow-sm backdrop-blur-sm">
+                            <SparkleIcon className="text-amber-500" size={16} />
+                            <span>Join the SLIIT Community</span>
+                        </div>
+                        <h1 className="text-7xl font-extrabold bg-gradient-to-r from-[#276332] via-[#556B2F] to-[#F59E0B] bg-clip-text text-transparent tracking-tight leading-tight">
+                            LearnLoop
+                        </h1>
+                        <p className="text-2xl text-[#276332] font-semibold leading-relaxed opacity-90">
+                            Create your account to unlock peer-to-peer sessions and find the perfect study partners.
+                        </p>
+                    </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Account ID Number</label>
-            <input
-              {...register('registrationNumber', { required: 'IT Number is required' })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white p-2 border"
-              placeholder="IT21XXXXXX"
-            />
-            {errors.registrationNumber && <span className="text-red-500 text-xs">{errors.registrationNumber.message}</span>}
-            <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-tight">Enter your Admin-assigned IT Number</p>
-          </div>
-
-          {/* Academic Placement */}
-          <div className="bg-indigo-50/50 rounded-xl p-4 space-y-3 border border-indigo-100">
-            <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Academic Placement</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Year</label>
-                <select
-                  {...register('year', { required: 'Year is required' })}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="">Select</option>
-                  <option value="Y1">Y1</option>
-                  <option value="Y2">Y2</option>
-                  <option value="Y3">Y3</option>
-                  <option value="Y4">Y4</option>
-                </select>
-                {errors.year && <span className="text-red-500 text-[10px]">{errors.year.message}</span>}
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Semester</label>
-                <select
-                  {...register('semester', { required: 'Semester is required' })}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="">Select</option>
-                  <option value="S1">S1</option>
-                  <option value="S2">S2</option>
-                </select>
-                {errors.semester && <span className="text-red-500 text-[10px]">{errors.semester.message}</span>}
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Main Group</label>
-                <select
-                  {...register('mainGroup', { required: 'Main Group is required' })}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="">Select</option>
-                  {[...Array(12)].map((_, i) => (
-                    <option key={i + 1} value={i + 1}>MG{String(i + 1).padStart(2, '0')}</option>
-                  ))}
-                </select>
-                {errors.mainGroup && <span className="text-red-500 text-[10px]">{errors.mainGroup.message}</span>}
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sub Group</label>
-                <select
-                  {...register('subGroup', { required: 'Sub Group is required' })}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="">Select</option>
-                  <option value="1">SG1</option>
-                  <option value="2">SG2</option>
-                </select>
-                {errors.subGroup && <span className="text-red-500 text-[10px]">{errors.subGroup.message}</span>}
-              </div>
+                    <div className="grid grid-cols-2 gap-6 pt-6">
+                        <div className="p-6 bg-white/40 backdrop-blur-md rounded-[2rem] border border-emerald-100/50 shadow-sm space-y-3">
+                            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-900/20">
+                                <User size={20} />
+                            </div>
+                            <h4 className="font-bold text-[#276332] text-sm">Personal Member Profile</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed">Highlight your skills and discover teammates who complement your strengths.</p>
+                        </div>
+                        <div className="p-6 bg-white/40 backdrop-blur-md rounded-[2rem] border border-emerald-100/50 shadow-sm space-y-3">
+                            <div className="w-10 h-10 bg-[#F59E0B] rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-900/20">
+                                <Briefcase size={20} />
+                            </div>
+                            <h4 className="font-bold text-[#276332] text-sm">Session Management</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed">Book, host, and rate peer-to-peer study sessions for any module.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Create Password</label>
-            <input
-              type="password"
-              {...register('password', {
-                required: 'Password is required',
-                minLength: { value: 6, message: 'Min 6 characters' }
-              })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white p-2 border"
-              placeholder="••••••••"
-            />
-            {errors.password && <span className="text-red-500 text-xs">{errors.password.message}</span>}
-          </div>
+            {/* Right Side: Register Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative bg-white overflow-y-auto">
+                <div className="w-full max-w-lg bg-white border border-emerald-100 shadow-[0_20px_50px_rgba(39,99,50,0.08)] rounded-[2.5rem] p-10 my-8 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#276332] via-[#556B2F] to-[#F59E0B]"></div>
 
-          <Button type="submit" fullWidth disabled={loading}>
-            <ShieldCheck className="mr-2" size={18} />
-            {loading ? 'Activating Account...' : 'Activate Account'}
-          </Button>
+                    <div className="text-center mb-8">
+                        <h1 className="text-4xl font-extrabold text-[#276332] tracking-tight mb-2">Join LearnLoop</h1>
+                        <p className="text-slate-500 font-medium text-sm leading-relaxed">Register to elevate your academic journey today.</p>
+                    </div>
 
-          <p className="text-center text-sm text-gray-600">
-            Already activated? <Link to="/login" className="text-indigo-600 font-medium hover:underline">Login here</Link>
-          </p>
-        </form>
-      </Card>
-    </div>
-  );
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">Full Name</label>
+                                <input
+                                    {...register('name', { required: 'Name is required' })}
+                                    className="rounded-2xl border border-gray-100 bg-gray-50/50 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-full py-3.5 px-5 transition-all outline-none font-medium text-slate-800"
+                                    placeholder="John Doe"
+                                />
+                                {errors.name && <span className="text-[10px] text-red-500 font-bold ml-4">{errors.name.message}</span>}
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">IT Number</label>
+                                <input
+                                    {...register('registrationNumber', { 
+                                        required: 'IT Number is required',
+                                        pattern: { value: /^[A-Z]{2}\d{8}$/i, message: 'Format: IT12345678' }
+                                    })}
+                                    className="rounded-2xl border border-gray-100 bg-gray-50/50 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-full py-3.5 px-5 transition-all outline-none font-medium text-slate-800"
+                                    placeholder="IT22000000"
+                                />
+                                {errors.registrationNumber && <span className="text-[10px] text-red-500 font-bold ml-4">{errors.registrationNumber.message}</span>}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">SLIIT Email</label>
+                            <input
+                                {...register('email', { 
+                                    required: 'Email is required',
+                                    pattern: { value: /^\S+@\S+$/i, message: 'Invalid email format' }
+                                })}
+                                className="rounded-2xl border border-gray-100 bg-gray-50/50 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-full py-3.5 px-5 transition-all outline-none font-medium text-slate-800"
+                                placeholder="name@my.sliit.lk"
+                            />
+                            {errors.email && <span className="text-[10px] text-red-500 font-bold ml-4">{errors.email.message}</span>}
+                        </div>
+
+                        {/* Academic Placement - Important for Module 4 */}
+                        <div className="bg-[#EAF4ED]/40 rounded-3xl p-5 space-y-4 border border-emerald-100/50">
+                            <div className="flex items-center gap-2 mb-1">
+                                <CheckCircle size={14} className="text-[#276332]" />
+                                <span className="text-[11px] font-black uppercase tracking-widest text-[#276332]">Academic Placement</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-400 ml-2">YEAR</label>
+                                    <select
+                                        {...register('year', { required: 'Required' })}
+                                        className="w-full bg-white/80 border border-emerald-100/50 rounded-xl px-4 py-2.5 text-sm font-bold text-[#276332] outline-none focus:ring-2 focus:ring-[#276332]/10"
+                                    >
+                                        <option value="">Select Year</option>
+                                        <option value="Y1">Year 1</option>
+                                        <option value="Y2">Year 2</option>
+                                        <option value="Y3">Year 3</option>
+                                        <option value="Y4">Year 4</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-400 ml-2">SEMESTER</label>
+                                    <select
+                                        {...register('semester', { required: 'Required' })}
+                                        className="w-full bg-white/80 border border-emerald-100/50 rounded-xl px-4 py-2.5 text-sm font-bold text-[#276332] outline-none focus:ring-2 focus:ring-[#276332]/10"
+                                    >
+                                        <option value="">Select Semester</option>
+                                        <option value="S1">Semester 1</option>
+                                        <option value="S2">Semester 2</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-400 ml-2">MAIN GROUP</label>
+                                    <select
+                                        {...register('mainGroup', { required: 'Required' })}
+                                        className="w-full bg-white/80 border border-emerald-100/50 rounded-xl px-4 py-2.5 text-sm font-bold text-[#276332] outline-none focus:ring-2 focus:ring-[#276332]/10"
+                                    >
+                                        <option value="">Select MG</option>
+                                        {[...Array(12)].map((_, i) => (
+                                            <option key={i + 1} value={i + 1}>MG{String(i + 1).padStart(2, '0')}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-400 ml-2">SUB GROUP</label>
+                                    <select
+                                        {...register('subGroup', { required: 'Required' })}
+                                        className="w-full bg-white/80 border border-emerald-100/50 rounded-xl px-4 py-2.5 text-sm font-bold text-[#276332] outline-none focus:ring-2 focus:ring-[#276332]/10"
+                                    >
+                                        <option value="">Select SG</option>
+                                        <option value="1">SG 01</option>
+                                        <option value="2">SG 02</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">Secure Password</label>
+                            <input
+                                type="password"
+                                {...register('password', { 
+                                    required: 'Password is required',
+                                    minLength: { value: 6, message: 'Minimum 6 characters' }
+                                })}
+                                className="rounded-2xl border border-gray-100 bg-gray-50/50 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-full py-3.5 px-5 transition-all outline-none font-medium text-slate-800"
+                                placeholder="••••••••••••"
+                            />
+                            {errors.password && <span className="text-[10px] text-red-500 font-bold ml-4">{errors.password.message}</span>}
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            disabled={loading} 
+                            className="w-full bg-gradient-to-r from-[#F59E0B] to-[#D97706] hover:from-[#D97706] hover:to-[#F59E0B] text-white font-black py-4.5 px-6 rounded-2xl shadow-xl shadow-amber-900/10 hover:shadow-amber-900/20 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 mt-6"
+                        >
+                            {loading ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                <>
+                                    <span className="text-lg">Create My Account</span>
+                                    <ArrowRight size={20} />
+                                </>
+                            )}
+                        </button>
+
+                        <div className="relative py-4">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
+                            <div className="relative flex justify-center text-xs uppercase font-bold"><span className="bg-white px-4 text-slate-300">Member already?</span></div>
+                        </div>
+
+                        <p className="text-center text-sm text-slate-500 font-medium">
+                            Have an account?{' '}
+                            <button
+                                type="button"
+                                className="text-[#276332] hover:text-[#556B2F] font-black underline decoration-2 underline-offset-4 transition-colors ml-1"
+                                onClick={() => navigate('/login')}
+                            >
+                                Login here
+                            </button>
+                        </p>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
 };
+
+const SparkleIcon = ({ className, size }) => (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+    </svg>
+);
 
 export default Register;

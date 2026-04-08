@@ -43,5 +43,13 @@ export const getActivityStats = (groupId) =>
 export const getContributions = (groupId) =>
     API.get(`/module4/activity/${groupId}/contributions`);
 
+// ============ MODULE MEMBERSHIP CHECK ============
+export const checkModuleMembership = (moduleCode) =>
+    API.get(`/module4/members/check-module/${moduleCode}`);
+
+// ============ CHATBOT ============
+export const askChatbot = (message, history = []) => API.post('/chatbot/ask', { message, history });
+export const executeChatAction = (actionData) => API.post('/chatbot/execute', actionData);
+
 // ============ USER PROFILE ============
 export const updateUserProfile = (data) => API.put('/auth/profile', data);

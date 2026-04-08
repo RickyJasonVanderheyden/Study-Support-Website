@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Users, Send, Filter } from 'lucide-react';
+import { Search, Users, Send, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { browseMembers, sendInvitation } from '../../services/module4Api';
 
@@ -11,6 +11,7 @@ const FindMembersSection = ({ groups = [] }) => {
     const [inviteModalUser, setInviteModalUser] = useState(null);
     const [selectedGroup, setSelectedGroup] = useState('');
     const [inviteMessage, setInviteMessage] = useState('');
+    const [sending, setSending] = useState(false);
     const user = JSON.parse(localStorage.getItem('user'));
 
     const fetchMembers = async () => {
@@ -26,7 +27,6 @@ const FindMembersSection = ({ groups = [] }) => {
             if (currentPlacement?.year && (!localUser.year || localUser.year !== currentPlacement.year)) {
                 const updatedUser = { ...localUser, ...currentPlacement };
                 localStorage.setItem('user', JSON.stringify(updatedUser));
-                // Optional: Notify global layout
                 window.dispatchEvent(new Event('storage'));
             }
         } catch (err) {
@@ -48,11 +48,28 @@ const FindMembersSection = ({ groups = [] }) => {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
+    // Check if a member is already in a group for the selected group's module
+    const getMemberConflict = (member) => {
+        if (!selectedGroup || !member.existingGroups?.length) return null;
+        const selectedGroupObj = groups.find(g => g._id === selectedGroup);
+        if (!selectedGroupObj) return null;
+        return member.existingGroups.find(eg => eg.moduleCode === selectedGroupObj.moduleCode);
+    };
+
     const handleInvite = async () => {
         if (!selectedGroup) {
             toast.error('Please select a group first');
             return;
         }
+
+        // Check for module conflict before sending
+        const conflict = getMemberConflict(inviteModalUser);
+        if (conflict) {
+            toast.error(`${inviteModalUser.name} is already in "${conflict.groupName}" for ${conflict.moduleCode}`);
+            return;
+        }
+
+        setSending(true);
         try {
             await sendInvitation({
                 groupId: selectedGroup,
@@ -65,6 +82,8 @@ const FindMembersSection = ({ groups = [] }) => {
             setSelectedGroup('');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to send invitation');
+        } finally {
+            setSending(false);
         }
     };
 
@@ -77,20 +96,26 @@ const FindMembersSection = ({ groups = [] }) => {
         return parts.join(' · ');
     };
 
-    const hasPlacement = placement && placement.year && placement.semester && placement.mainGroup && placement.subGroup;
+    const isAdmin = user?.role === 'admin' || user?.role === 'instructor';
+    const hasPlacement = isAdmin || (placement && placement.year && placement.semester && placement.mainGroup && placement.subGroup);
 
     return (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-8">
             {/* Header */}
-            <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+            <div className={`px-6 py-5 border-b border-gray-100 bg-gradient-to-r ${isAdmin ? 'from-amber-50 to-orange-50' : 'from-indigo-50 to-purple-50'}`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg ${isAdmin ? 'bg-amber-600' : 'bg-indigo-600'}`}>
                             <Users size={20} />
                         </div>
                         <div className="text-left">
                             <h2 className="font-bold text-gray-900 text-lg">Find Group Members</h2>
-                            {hasPlacement ? (
+                            {isAdmin ? (
+                                <p className="text-xs text-gray-500">
+                                    <span className="font-bold text-amber-600">🛡️ Admin View</span>
+                                    <span className="text-gray-400 ml-1">— Showing all students across all sub-groups</span>
+                                </p>
+                            ) : hasPlacement ? (
                                 <p className="text-xs text-gray-500">
                                     Your class: <span className="font-bold text-indigo-600">{placement.year} · {placement.semester} · MG{String(placement.mainGroup).padStart(2, '0')} · SG{placement.subGroup}</span>
                                     <span className="text-gray-400 ml-1">— Showing classmates from your sub-group</span>
@@ -166,9 +191,25 @@ const FindMembersSection = ({ groups = [] }) => {
                                 </div>
                             </div>
 
+                            {/* Existing Group Badges — shows which modules this member is already in */}
+                            {member.existingGroups && member.existingGroups.length > 0 && (
+                                <div className="mt-2.5 flex flex-wrap gap-1">
+                                    {member.existingGroups.map((eg, i) => (
+                                        <span
+                                            key={i}
+                                            className="text-[10px] bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"
+                                            title={`Already in "${eg.groupName}" for ${eg.moduleCode}`}
+                                        >
+                                            <UserCheck size={10} />
+                                            {eg.moduleCode}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+
                             {/* Skills */}
                             {member.skills && member.skills.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-1">
+                                <div className="mt-2 flex flex-wrap gap-1">
                                     {member.skills.slice(0, 4).map((skill, i) => (
                                         <span key={i} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
                                             {skill}
@@ -223,9 +264,29 @@ const FindMembersSection = ({ groups = [] }) => {
                             Send a group invitation to <strong>{inviteModalUser.email}</strong>
                         </p>
                         {formatPlacement(inviteModalUser) && (
-                            <p className="text-xs text-indigo-600 font-bold mb-4">
+                            <p className="text-xs text-indigo-600 font-bold mb-2">
                                 {formatPlacement(inviteModalUser)}
                             </p>
+                        )}
+
+                        {/* Show which groups this person is already in */}
+                        {inviteModalUser.existingGroups && inviteModalUser.existingGroups.length > 0 && (
+                            <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4 text-left">
+                                <p className="text-xs font-bold text-orange-800 mb-1.5 flex items-center gap-1">
+                                    <UserCheck size={12} />
+                                    Already in group(s):
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {inviteModalUser.existingGroups.map((eg, i) => (
+                                        <span key={i} className="text-[11px] bg-white text-orange-700 border border-orange-200 px-2 py-0.5 rounded-lg font-semibold">
+                                            {eg.moduleCode} — "{eg.groupName}"
+                                        </span>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] text-orange-500 mt-2 italic">
+                                    This student cannot join another group for the same module.
+                                </p>
+                            </div>
                         )}
 
                         <div className="space-y-4">
@@ -237,10 +298,29 @@ const FindMembersSection = ({ groups = [] }) => {
                                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                                 >
                                     <option value="">Choose a group...</option>
-                                    {groups.map(g => (
-                                        <option key={g._id} value={g._id}>{g.name} ({g.moduleCode})</option>
-                                    ))}
+                                    {groups.map(g => {
+                                        // Check if the user is already in a group for this module
+                                        const conflict = inviteModalUser.existingGroups?.find(eg => eg.moduleCode === g.moduleCode);
+                                        return (
+                                            <option
+                                                key={g._id}
+                                                value={g._id}
+                                                disabled={!!conflict}
+                                            >
+                                                {g.name} ({g.moduleCode}){conflict ? ' — ❌ Already in a group' : ''}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
+
+                                {/* Inline conflict warning when a group is selected */}
+                                {selectedGroup && getMemberConflict(inviteModalUser) && (
+                                    <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-left">
+                                        <p className="text-xs text-red-700 font-semibold">
+                                            ❌ {inviteModalUser.name} is already in "{getMemberConflict(inviteModalUser).groupName}" for {getMemberConflict(inviteModalUser).moduleCode}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             <div>
@@ -262,10 +342,15 @@ const FindMembersSection = ({ groups = [] }) => {
                                 </button>
                                 <button
                                     onClick={handleInvite}
-                                    className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1.5"
+                                    disabled={!selectedGroup || !!getMemberConflict(inviteModalUser) || sending}
+                                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${
+                                        !selectedGroup || getMemberConflict(inviteModalUser) || sending
+                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    }`}
                                 >
-                                    <Send size={14} />
-                                    Send Invitation
+                                    <Send size={14} className={sending ? 'animate-spin' : ''} />
+                                    {sending ? 'Sending...' : 'Send Invitation'}
                                 </button>
                             </div>
                         </div>
@@ -277,4 +362,3 @@ const FindMembersSection = ({ groups = [] }) => {
 };
 
 export default FindMembersSection;
-

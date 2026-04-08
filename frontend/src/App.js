@@ -12,6 +12,7 @@ import InstructorRegister from './pages/InstructorRegister';
 import Module1Page from './pages/Module1Page';
 import Module2Page from './pages/Module2Page';
 import Module3Page from './pages/Module3Page';
+import Module3SessionDetailsPage from './pages/Module3SessionDetailsPage';
 import Module4Page from './pages/Module4Page';
 import GroupDetail from './pages/GroupDetail';
 import AdminPanel from './pages/AdminPanel';
@@ -34,7 +35,6 @@ function App() {
           {/* Student Auth */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-
           {/* Admin Auth */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/register" element={<AdminRegister />} />
@@ -46,9 +46,11 @@ function App() {
           <Route path="/module1" element={<AuthenticatedLayout><Module1Page /></AuthenticatedLayout>} />
           <Route path="/module2" element={<AuthenticatedLayout><Module2Page /></AuthenticatedLayout>} />
           <Route path="/module3" element={<AuthenticatedLayout><Module3Page /></AuthenticatedLayout>} />
+          <Route path="/module3/session/:id" element={<AuthenticatedLayout><Module3SessionDetailsPage /></AuthenticatedLayout>} />
           <Route path="/module4" element={<AuthenticatedLayout><Module4Page /></AuthenticatedLayout>} />
           <Route path="/module4/group/:id" element={<AuthenticatedLayout><GroupDetail /></AuthenticatedLayout>} />
           <Route path="/admin" element={<AuthenticatedLayout><AdminPanel /></AuthenticatedLayout>} />
+
         </Routes>
       </div>
       <Toaster position="top-right" />

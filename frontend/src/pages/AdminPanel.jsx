@@ -122,13 +122,13 @@ const AdminPanel = () => {
         if (formData.role === 'student') {
             const studentEmailRegex = /^it\d{8,10}@my\.sliit\.lk$/i;
             if (!studentEmailRegex.test(formData.email.trim())) {
-                toast.error("Student email must match format: ITxxxxxxxx@my.sliit.lk");
+                toast.error("Student email must match format: IT12345678@my.sliit.lk");
                 return;
             }
 
             const itNumberRegex = /^it\d{8,10}$/i;
             if (!itNumberRegex.test(formData.registrationNumber.trim())) {
-                toast.error("IT Number must match format: ITxxxxxxxx");
+                toast.error("IT Number must match format: IT12345678");
                 return;
             }
         }
@@ -637,4 +637,3 @@ const AdminPanel = () => {
 };
 
 export default AdminPanel;
-

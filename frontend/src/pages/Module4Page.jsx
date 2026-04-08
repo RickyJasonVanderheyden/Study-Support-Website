@@ -77,21 +77,38 @@ const Module4Page = () => {
             </h3>
           </div>
           <div className="space-y-3">
-            {invitations.map(inv => (
-              <div key={inv._id} className="bg-white rounded-lg p-4 flex items-center justify-between shadow-sm">
-                <div className="text-left">
-                  <p className="font-semibold text-gray-900">{inv.group?.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {inv.group?.moduleCode} • Invited by {inv.invitedBy?.name}
-                  </p>
-                  {inv.message && <p className="text-sm text-gray-600 italic mt-1">"{inv.message}"</p>}
+            {invitations.map(inv => {
+              const isJoinRequest = inv.type === 'join_request';
+              // For join requests: no module conflict for the leader (they approve others)
+              // For regular invitations: check if current user already has a group for this module
+              const moduleConflict = isJoinRequest ? null : groups.find(g => g.moduleCode === inv.group?.moduleCode);
+              return (
+                <div key={inv._id} className={`rounded-lg p-4 flex items-center justify-between shadow-sm ${moduleConflict ? 'bg-orange-50 border border-orange-200' : isJoinRequest ? 'bg-blue-50 border border-blue-200' : 'bg-white'}`}>
+                  <div className="text-left">
+                    <p className="font-semibold text-gray-900">{inv.group?.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {inv.group?.moduleCode} • {isJoinRequest ? `Join request from ${inv.invitedBy?.name}` : `Invited by ${inv.invitedBy?.name}`}
+                    </p>
+                    {inv.message && <p className="text-sm text-gray-600 italic mt-1">"{inv.message}"</p>}
+                    {moduleConflict && (
+                      <p className="text-xs text-orange-700 font-semibold mt-1.5 flex items-center gap-1">
+                        ⚠️ You're already in "{moduleConflict.name}" for {inv.group?.moduleCode}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {moduleConflict ? (
+                      <span className="text-xs bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg font-bold">
+                        Module Conflict
+                      </span>
+                    ) : (
+                      <Button size="sm" onClick={() => handleAcceptInvitation(inv._id)}>{isJoinRequest ? 'Approve' : 'Accept'}</Button>
+                    )}
+                    <Button size="sm" variant="secondary" onClick={() => handleDeclineInvitation(inv._id)}>Decline</Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" onClick={() => handleAcceptInvitation(inv._id)}>Accept</Button>
-                  <Button size="sm" variant="secondary" onClick={() => handleDeclineInvitation(inv._id)}>Decline</Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

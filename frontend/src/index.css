@@ -12,8 +12,16 @@
   .btn-primary {
     @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium;
   }
-  
-  .card {
-    @apply bg-white rounded-card shadow-card p-6 hover:shadow-card-hover transition-shadow duration-200;
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 5s ease-in-out infinite;
   }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+  100% { transform: translateY(0px); }
 }
