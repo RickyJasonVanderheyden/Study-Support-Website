@@ -24,13 +24,23 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide registration number'],
     unique: true
   },
+  mobileNumber: {
+    type: String,
+    required: [true, 'Please provide mobile number'],
+    match: [/^\+94\d{9}$/, 'Please provide a valid Sri Lankan mobile number (+94XXXXXXXXX)']
+  },
   groupNumber: {
     type: String,
     default: null
   },
+  roleRequest: {
+    type: String,
+    enum: ['none', 'pending_session_lead', 'rejected'],
+    default: 'none'
+  },
   role: {
     type: String,
-    enum: ['student', 'instructor', 'admin'],
+    enum: ['student', 'session_lead', 'super_admin'],
     default: 'student'
   },
   createdAt: {

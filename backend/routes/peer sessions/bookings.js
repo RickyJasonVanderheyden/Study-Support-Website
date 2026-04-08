@@ -3,14 +3,18 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const SessionBooking = require('../../models/SessionBooking');
 const PeerSession = require('../../models/PeerSession');
+const authMiddleware = require('../../middleware/authMiddleware');
 
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { sessionId, email } = req.query;
+    const { sessionId } = req.query;
+    const user = req.user; // From authMiddleware
+
     const filters = {};
 
     if (sessionId) filters.sessionId = sessionId;
-    if (email) filters.studentEmail = String(email).toLowerCase();
+    // Only show bookings for the authenticated user
+    filters.studentEmail = user.email;
 
     const bookings = await SessionBooking.find(filters).sort({ createdAt: -1 });
     res.json(bookings);
@@ -19,9 +23,10 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { sessionId, studentName, studentEmail } = req.body;
+    const { sessionId } = req.body;
+    const user = req.user; // From authMiddleware
 
     if (!mongoose.Types.ObjectId.isValid(sessionId)) {
       return res.status(400).json({ error: 'Invalid session id' });
@@ -39,8 +44,9 @@ router.post('/', async (req, res) => {
 
     const booking = await SessionBooking.create({
       sessionId,
-      studentName,
-      studentEmail: String(studentEmail || '').toLowerCase(),
+      studentName: user.name,
+      studentEmail: user.email,
+      studentMobile: user.mobileNumber,
       status: 'joined',
     });
 
