@@ -16,6 +16,11 @@ const invitationSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    type: {
+        type: String,
+        enum: ['invitation', 'join_request'],
+        default: 'invitation'
+    },
     status: {
         type: String,
         enum: ['pending', 'accepted', 'declined', 'expired'],

@@ -50,7 +50,8 @@ router.post('/pre-register', authMiddleware, roleMiddleware(['admin']), async (r
         id: user._id,
         email: user.email,
         registrationNumber: user.registrationNumber,
-        isActivated: user.isActivated
+        isActivated: user.isActivated,
+        role: user.role
       }
     });
   } catch (error) {
@@ -192,6 +193,30 @@ router.delete('/:id', authMiddleware, roleMiddleware(['admin']), async (req, res
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'User removed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 6.1 Update User (Admin Only)
+router.put('/:id', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+  try {
+    const { name, email, registrationNumber, year, semester, mainGroup, subGroup, role } = req.body;
+    const user = await User.findById(req.params.id);
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (registrationNumber) user.registrationNumber = registrationNumber;
+    if (year) user.year = year;
+    if (semester) user.semester = semester;
+    if (mainGroup) user.mainGroup = mainGroup;
+    if (subGroup) user.subGroup = subGroup;
+    if (role) user.role = role;
+
+    await user.save();
+    res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -5,6 +5,7 @@ const Invitation = require('../../models/Invitation');
 const Group = require('../../models/Group');
 const User = require('../../models/User');
 const ActivityLog = require('../../models/ActivityLog');
+const { findExistingGroupForModule } = require('./helpers');
 
 // Helper: Log activity
 const logActivity = async (groupId, userId, action, details = '', targetUser = null, metadata = {}) => {
@@ -27,7 +28,7 @@ router.post('/send', authMiddleware, async (req, res) => {
     if (!group) return res.status(404).json({ error: 'Group not found' });
 
     // Only leader can send invitations
-    const leader = group.members.find(m => m.user.toString() === req.user._id.toString() && m.role === 'leader');
+    const leader = group.members.find(m => m.user && m.user.toString() === req.user._id.toString() && m.role === 'leader');
     if (!leader && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Only the group leader can send invitations' });
     }
@@ -47,10 +48,33 @@ router.post('/send', authMiddleware, async (req, res) => {
     const invitedUser = await User.findById(userId);
     if (!invitedUser) return res.status(404).json({ error: 'User not found' });
 
+    // RESTRICTION: A group leader (student) can only invite students from the SAME sub-group
+    if (req.user.role !== 'admin' && req.user.role !== 'instructor') {
+      const isSamePlacement = 
+        invitedUser.year === group.year &&
+        invitedUser.semester === group.semester &&
+        invitedUser.mainGroup === group.mainGroup &&
+        invitedUser.subGroup === group.subGroup;
+      
+      if (!isSamePlacement) {
+        return res.status(400).json({ 
+          error: `${invitedUser.name} is not in your sub-group (${group.year}·${group.semester}·MG${group.mainGroup}·SG${group.subGroup}). You can only invite students from your own class.` 
+        });
+      }
+    }
+
     // Check not already a member
     const alreadyMember = group.members.some(m => m.user.toString() === userId);
     if (alreadyMember) {
       return res.status(400).json({ error: 'User is already a member of this group' });
+    }
+
+    // Check if user is already in another group for the same module
+    const existingGroupForModule = await findExistingGroupForModule(userId, group.moduleCode, group._id);
+    if (existingGroupForModule) {
+      return res.status(400).json({
+        error: `${invitedUser.name} is already in "${existingGroupForModule.name}" for module ${group.moduleCode}. They cannot join another group for the same module.`
+      });
     }
 
     // Check no pending invitation exists
@@ -83,6 +107,7 @@ router.post('/send', authMiddleware, async (req, res) => {
 
     res.status(201).json({ success: true, invitation: populated });
   } catch (error) {
+    console.error('INVITATION SEND ERROR:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -126,46 +151,61 @@ router.get('/sent/:groupId', authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/module4/invitations/:id/accept - Accept invitation
+// PUT /api/module4/invitations/:id/accept - Accept invitation or join request
 router.put('/:id/accept', authMiddleware, async (req, res) => {
   try {
     const invitation = await Invitation.findById(req.params.id);
     if (!invitation) return res.status(404).json({ error: 'Invitation not found' });
 
-    // Only the invited user can accept
+    const isJoinRequest = invitation.type === 'join_request';
+
+    // For regular invitations: only the invited user can accept
+    // For join requests: only the invited user (leader) can approve
     if (invitation.invitedUser.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'You cannot accept this invitation' });
+      return res.status(403).json({ error: isJoinRequest ? 'Only the group leader can approve join requests' : 'You cannot accept this invitation' });
     }
 
     if (invitation.status !== 'pending') {
       return res.status(400).json({ error: `Invitation is already ${invitation.status}` });
     }
 
-    // Check if expired
     if (invitation.expiresAt < new Date()) {
       invitation.status = 'expired';
       await invitation.save();
       return res.status(400).json({ error: 'This invitation has expired' });
     }
 
-    // Add user to group
     const group = await Group.findById(invitation.group);
     if (!group) return res.status(404).json({ error: 'Group no longer exists' });
 
-    // Check max members again
+    // The user being added depends on the type:
+    // - Regular invitation: the invitedUser (current user) joins
+    // - Join request: the invitedBy (the requester) joins
+    const userToAdd = isJoinRequest ? invitation.invitedBy : req.user._id;
+    const userToAddName = isJoinRequest
+      ? (await User.findById(userToAdd).select('name'))?.name || 'Unknown'
+      : req.user.name;
+
+    // Check module conflict for the user being added
+    const existingGroupForModule = await findExistingGroupForModule(userToAdd, group.moduleCode, group._id);
+    if (existingGroupForModule) {
+      return res.status(400).json({
+        error: isJoinRequest
+          ? `${userToAddName} is already in "${existingGroupForModule.name}" for module ${group.moduleCode}.`
+          : `You are already a member of "${existingGroupForModule.name}" for module ${group.moduleCode}. You cannot join another group for the same module.`
+      });
+    }
+
+    // Check max members
     const activeCount = group.members.filter(m => m.status !== 'inactive').length;
     if (activeCount >= group.maxMembers) {
       return res.status(400).json({ error: 'Group is now full' });
     }
 
-    // Check not already a member
-    const alreadyMember = group.members.some(m => m.user.toString() === req.user._id.toString());
+    // Add the user to the group
+    const alreadyMember = group.members.some(m => m.user.toString() === userToAdd.toString());
     if (!alreadyMember) {
-      group.members.push({
-        user: req.user._id,
-        role: 'member',
-        status: 'active'
-      });
+      group.members.push({ user: userToAdd, role: 'member', status: 'active' });
       await group.save();
     }
 
@@ -174,12 +214,22 @@ router.put('/:id/accept', authMiddleware, async (req, res) => {
     await invitation.save();
 
     await logActivity(
-      group._id, req.user._id, 'invitation_accepted',
-      `${req.user.name} accepted the invitation and joined the group`
+      group._id, req.user._id,
+      isJoinRequest ? 'join_request_accepted' : 'invitation_accepted',
+      isJoinRequest
+        ? `${req.user.name} approved ${userToAddName}'s join request`
+        : `${req.user.name} accepted the invitation and joined the group`,
+      userToAdd
     );
 
-    res.json({ success: true, message: 'Invitation accepted! You are now a member.' });
+    res.json({
+      success: true,
+      message: isJoinRequest
+        ? `Join request approved! ${userToAddName} is now a member.`
+        : 'Invitation accepted! You are now a member.'
+    });
   } catch (error) {
+    console.error('INVITATION ACCEPT ERROR:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -198,13 +248,18 @@ router.put('/:id/decline', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: `Invitation is already ${invitation.status}` });
     }
 
+    const isJoinRequest = invitation.type === 'join_request';
+
     invitation.status = 'declined';
     invitation.respondedAt = new Date();
     await invitation.save();
 
     await logActivity(
-      invitation.group, req.user._id, 'invitation_declined',
-      `${req.user.name} declined the invitation`
+      invitation.group, req.user._id,
+      isJoinRequest ? 'join_request_declined' : 'invitation_declined',
+      isJoinRequest
+        ? `${req.user.name} declined the join request`
+        : `${req.user.name} declined the invitation`
     );
 
     res.json({ success: true, message: 'Invitation declined' });

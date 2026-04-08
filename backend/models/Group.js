@@ -106,7 +106,7 @@ groupSchema.index({ 'members.user': 1 });
 
 // Virtual for current member count
 groupSchema.virtual('memberCount').get(function () {
-    return this.members.filter(m => m.status !== 'inactive').length;
+    return (this.members || []).filter(m => m.status !== 'inactive').length;
 });
 
 // Ensure virtuals are included in JSON

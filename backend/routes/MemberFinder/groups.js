@@ -3,6 +3,7 @@ const router = express.Router();
 const authMiddleware = require('../../middleware/authMiddleware');
 const Group = require('../../models/Group');
 const ActivityLog = require('../../models/ActivityLog');
+const { findExistingGroupForModule } = require('./helpers');
 
 // Helper: Log activity
 const logActivity = async (groupId, userId, action, details = '', targetUser = null, metadata = {}) => {
@@ -33,6 +34,16 @@ router.post('/', authMiddleware, async (req, res) => {
       if (!user.year || !user.semester || !user.mainGroup || !user.subGroup) {
         return res.status(400).json({
           error: 'Please complete your academic placement profile (Year, Semester, Group) before creating a group.'
+        });
+      }
+    }
+
+    // Check if student is already in a group for this module
+    if (user.role === 'student') {
+      const existing = await findExistingGroupForModule(user._id, moduleCode);
+      if (existing) {
+        return res.status(400).json({
+          error: `You are already a member of "${existing.name}" for module ${moduleCode.toUpperCase()}. You cannot create another group for the same module.`
         });
       }
     }

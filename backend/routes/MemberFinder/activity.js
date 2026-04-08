@@ -52,7 +52,10 @@ router.get('/:groupId/stats', authMiddleware, async (req, res) => {
         if (!group) return res.status(404).json({ error: 'Group not found' });
 
         // Check access
-        const isMember = group.members.some(m => m.user.toString() === req.user._id.toString());
+        const isMember = group.members.some(m => {
+            const memberId = m.user._id ? m.user._id.toString() : m.user.toString();
+            return memberId === req.user._id.toString();
+        });
         if (!isMember && req.user.role !== 'admin' && req.user.role !== 'instructor') {
             return res.status(403).json({ error: 'Access denied' });
         }
@@ -119,6 +122,15 @@ router.get('/:groupId/contributions', authMiddleware, async (req, res) => {
         const group = await Group.findById(req.params.groupId)
             .populate('members.user', 'name registrationNumber');
         if (!group) return res.status(404).json({ error: 'Group not found' });
+
+        // Check access
+        const isMember = group.members.some(m => {
+            const memberId = m.user._id ? m.user._id.toString() : m.user.toString();
+            return memberId === req.user._id.toString();
+        });
+        if (!isMember && req.user.role !== 'admin' && req.user.role !== 'instructor') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
 
         const contributions = group.members.map(member => ({
             name: member.user.name,

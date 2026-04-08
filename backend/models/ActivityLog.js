@@ -27,6 +27,9 @@ const activityLogSchema = new mongoose.Schema({
             'invitation_sent',
             'invitation_accepted',
             'invitation_declined',
+            'join_request_sent',
+            'join_request_accepted',
+            'join_request_declined',
             'leadership_transferred'
         ]
     },

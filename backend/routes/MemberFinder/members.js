@@ -4,6 +4,7 @@ const authMiddleware = require('../../middleware/authMiddleware');
 const Group = require('../../models/Group');
 const User = require('../../models/User');
 const ActivityLog = require('../../models/ActivityLog');
+const { findExistingGroupForModule, getUserGroupMap } = require('./helpers');
 
 // Helper: Log activity
 const logActivity = async (groupId, userId, action, details = '', targetUser = null, metadata = {}) => {
@@ -69,15 +70,43 @@ router.get('/browse', authMiddleware, async (req, res) => {
       .sort({ name: 1 })
       .limit(60);
 
+    // Enrich users with their existing group memberships
+    const userIds = users.map(u => u._id);
+    const userGroupMap = await getUserGroupMap(userIds);
+
+    const enrichedUsers = users.map(u => ({
+      ...u.toObject(),
+      existingGroups: userGroupMap[u._id.toString()] || []
+    }));
+
     res.json({
       success: true,
-      users,
+      users: enrichedUsers,
       currentPlacement: {
         year: currentUser.year,
         semester: currentUser.semester,
         mainGroup: currentUser.mainGroup,
         subGroup: currentUser.subGroup
       }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/module4/members/check-module/:moduleCode - Check if current user already has a group for a module
+router.get('/check-module/:moduleCode', authMiddleware, async (req, res) => {
+  try {
+    const existing = await findExistingGroupForModule(
+      req.user._id,
+      req.params.moduleCode
+    );
+    res.json({
+      success: true,
+      alreadyInGroup: !!existing,
+      existingGroup: existing
+        ? { _id: existing._id, name: existing.name, moduleCode: existing.moduleCode }
+        : null
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -108,12 +137,15 @@ router.get('/:groupId', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/module4/members/:groupId/search - Search users to add
+// GET /api/module4/members/:groupId/search - Search users to add (Restricted to same sub-group for students)
 router.get('/:groupId/search', authMiddleware, async (req, res) => {
   try {
     const group = await Group.findById(req.params.groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    if (!isLeader(group, req.user._id)) {
+    
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'instructor';
+
+    if (!isLeader(group, req.user._id) && !isAdmin) {
       return res.status(403).json({ error: 'Only the leader can search for new members' });
     }
 
@@ -125,19 +157,29 @@ router.get('/:groupId/search', authMiddleware, async (req, res) => {
     // Get existing member IDs to exclude
     const existingMemberIds = group.members.map(m => m.user.toString());
 
-    const users = await User.find({
-      $and: [
-        { _id: { $nin: existingMemberIds } },
-        { role: 'student' },
-        {
-          $or: [
-            { name: { $regex: q, $options: 'i' } },
-            { registrationNumber: { $regex: q, $options: 'i' } },
-            { email: { $regex: q, $options: 'i' } }
-          ]
-        }
+    // Build query: only activated students, exclude current members
+    const query = {
+      _id: { $nin: existingMemberIds },
+      role: 'student',
+      isActivated: true,
+      $or: [
+        { name: { $regex: q, $options: 'i' } },
+        { registrationNumber: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } }
       ]
-    }).select('name email registrationNumber semester skills bio').limit(20);
+    };
+
+    // RESTRICTION: For students, only search within the group's sub-group
+    if (!isAdmin) {
+      query.year = group.year;
+      query.semester = group.semester;
+      query.mainGroup = group.mainGroup;
+      query.subGroup = group.subGroup;
+    }
+
+    const users = await User.find(query)
+      .select('name email registrationNumber year semester mainGroup subGroup skills bio role')
+      .limit(20);
 
     res.json({ success: true, users });
   } catch (error) {
@@ -174,6 +216,14 @@ router.post('/:groupId/add', authMiddleware, async (req, res) => {
     // Check not already a member
     if (isMember(group, userId)) {
       return res.status(400).json({ error: 'User is already a member of this group' });
+    }
+
+    // Check if user is already in another group for the same module
+    const existing = await findExistingGroupForModule(userId, group.moduleCode, group._id);
+    if (existing) {
+      return res.status(400).json({
+        error: `${userToAdd.name} is already a member of "${existing.name}" for module ${group.moduleCode}. A student can only be in one group per module.`
+      });
     }
 
     group.members.push({
@@ -365,6 +415,7 @@ router.put('/:groupId/transfer/:userId', authMiddleware, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // GET /api/module4/members/profile/:userId - Get member profile
 router.get('/profile/:userId', authMiddleware, async (req, res) => {
