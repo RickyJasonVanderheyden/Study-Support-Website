@@ -69,6 +69,7 @@ if (!MONGODB_URI || MONGODB_URI.includes('your_mongodb_connection_string')) {
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/admin', require('./routes/admin'));
 
 // Module 1 routes (Member 1)
 app.use('/api/module1/assessment', require('./routes/StudentProgressandDashboard/assessment'));
@@ -124,4 +125,8 @@ server.on('listening', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${NODE_ENV}`);
   console.log(`🌐 Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
+
+  // Start session reminder service
+  const sessionReminderService = require('./utils/sessionReminderService');
+  sessionReminderService.start();
 });
