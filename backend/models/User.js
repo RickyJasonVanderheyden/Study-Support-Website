@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide an email'],
     unique: true,
     lowercase: true,
-    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,})+$/, 'Please provide a valid email']
   },
   password: {
     type: String,
@@ -22,7 +22,8 @@ const userSchema = new mongoose.Schema({
   registrationNumber: {
     type: String,
     required: [true, 'Please provide registration number'],
-    unique: true
+    unique: true,
+    match: [/^IT\d{8}$/i, 'Registration number must be IT followed by 8 digits (e.g., IT12345678)']
   },
   mobileNumber: {
     type: String,

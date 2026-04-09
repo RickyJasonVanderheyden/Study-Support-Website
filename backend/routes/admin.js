@@ -36,6 +36,30 @@ router.get('/requests', superAdminAuth, async (req, res) => {
   }
 });
 
+// GET all approved Session Lead requests
+router.get('/approved', superAdminAuth, async (req, res) => {
+  try {
+    const approvedUsers = await User.find({ role: 'session_lead', roleRequest: 'none' })
+      .select('name email registrationNumber createdAt roleRequest role')
+      .sort({ createdAt: -1 });
+    res.json(approvedUsers);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET all rejected Session Lead requests
+router.get('/rejected', superAdminAuth, async (req, res) => {
+  try {
+    const rejectedUsers = await User.find({ roleRequest: 'rejected' })
+      .select('name email registrationNumber createdAt roleRequest role')
+      .sort({ createdAt: -1 });
+    res.json(rejectedUsers);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PATCH approve a session lead
 router.patch('/approve', superAdminAuth, async (req, res) => {
   try {

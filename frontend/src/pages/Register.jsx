@@ -37,6 +37,16 @@ const Register = () => {
     return `${cc}${local}`;
   };
 
+  const isSliitEmail = (value) => /^it\d{8}@my\.sliit\.lk$/i.test(String(value || '').trim());
+  const getItDigitsFromSliitEmail = (value) => {
+    const match = String(value || '').trim().match(/^it(\d{8})@my\.sliit\.lk$/i);
+    return match ? match[1] : null;
+  };
+  const getItDigitsFromRegNo = (value) => {
+    const match = String(value || '').trim().match(/^IT(\d{8})$/i);
+    return match ? match[1] : null;
+  };
+
   const validateField = (name, value) => {
     let errorMsg = '';
     switch (name) {
@@ -46,13 +56,13 @@ const Register = () => {
         else if (value && !/^[A-Za-z\s]{2,50}$/.test(value)) errorMsg = 'Name must be 2-50 characters and contain only letters.';
         break;
       case 'email':
-        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errorMsg = 'Please enter a valid email address.';
+        if (value && !isSliitEmail(value)) errorMsg = 'Use your SLIIT email (itXXXXXXXX@my.sliit.lk).';
         break;
       case 'password':
         if (value && value.length < 6) errorMsg = 'Password must be at least 6 characters.';
         break;
       case 'registrationNumber':
-        if (value && !/^[A-Za-z]{2}\d{8}$/.test(value)) errorMsg = 'Must be 2 letters followed by 8 digits (e.g., IT12345678).';
+        if (value && !/^IT\d{8}$/i.test(value)) errorMsg = 'Must be IT followed by 8 digits (e.g., IT12345678).';
         break;
       case 'mobileNumber':
         if (value && !/^\+\d{7,15}$/.test(value)) errorMsg = 'Must be a valid international number (e.g. +94712345678).';
@@ -79,6 +89,17 @@ const Register = () => {
       }
 
       validateField(name, value);
+      if (name === 'email' || name === 'registrationNumber') {
+        const emailDigits = getItDigitsFromSliitEmail(name === 'email' ? value : next.email);
+        const regDigits = getItDigitsFromRegNo(name === 'registrationNumber' ? value : next.registrationNumber);
+        if (emailDigits && regDigits && emailDigits !== regDigits) {
+          setErrors((prev) => ({
+            ...prev,
+            email: 'Email IT number must match your registration number.',
+            registrationNumber: 'Registration number must match the IT number in your email.',
+          }));
+        }
+      }
       return next;
     });
   };
@@ -90,9 +111,16 @@ const Register = () => {
     let isValid = true;
     const newErrors = {};
     if (!/^[A-Za-z\s]{2,50}$/.test(formData.name) || /\d/.test(formData.name)) { newErrors.name = 'Name must be 2-50 characters and contain only letters.'; isValid = false; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { newErrors.email = 'Please enter a valid email address.'; isValid = false; }
+    if (!isSliitEmail(formData.email)) { newErrors.email = 'Use your SLIIT email (itXXXXXXXX@my.sliit.lk).'; isValid = false; }
     if (formData.password.length < 6) { newErrors.password = 'Password must be at least 6 characters.'; isValid = false; }
-    if (!/^[A-Za-z]{2}\d{8}$/.test(formData.registrationNumber)) { newErrors.registrationNumber = 'Must be 2 letters followed by 8 digits (e.g., IT12345678).'; isValid = false; }
+    if (!/^IT\d{8}$/i.test(formData.registrationNumber)) { newErrors.registrationNumber = 'Must be IT followed by 8 digits (e.g., IT12345678).'; isValid = false; }
+    const emailDigits = getItDigitsFromSliitEmail(formData.email);
+    const regDigits = getItDigitsFromRegNo(formData.registrationNumber);
+    if (emailDigits && regDigits && emailDigits !== regDigits) {
+      newErrors.email = 'Email IT number must match your registration number.';
+      newErrors.registrationNumber = 'Registration number must match the IT number in your email.';
+      isValid = false;
+    }
     if (!/^\+\d{7,15}$/.test(formData.mobileNumber)) { newErrors.mobileNumber = 'Must be a valid international number (e.g. +94712345678).'; isValid = false; }
     
     setErrors(newErrors);
