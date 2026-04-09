@@ -1,19 +1,5 @@
 const dns = require('dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']);
-const origLookup = dns.lookup;
-dns.lookup = function(hostname, options, callback) {
-  if (typeof options === 'function') {
-    callback = options;
-    options = {};
-  }
-  dns.resolve4(hostname, (err, addresses) => {
-    if (addresses && addresses.length > 0) {
-      callback(null, addresses[Math.floor(Math.random() * addresses.length)], 4);
-    } else {
-      origLookup(hostname, options, callback);
-    }
-  });
-};
+dns.setDefaultResultOrder('ipv4first');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');

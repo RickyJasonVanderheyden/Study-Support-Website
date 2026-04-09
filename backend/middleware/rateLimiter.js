@@ -1,14 +1,14 @@
 const rateLimit = require('express-rate-limit');
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  windowMs: parseInt(process.env.API_WINDOW_MS || '900000', 10),
+  max: parseInt(process.env.API_MAX_REQUESTS || '100', 10),
   message: 'Too many requests from this IP, please try again later.'
 });
 
 const generationLimiter = rateLimit({
-  windowMs: 24 * 60 * 60 * 1000, // 24 hours
-  max: 10,
+  windowMs: parseInt(process.env.GENERATION_WINDOW_MS || '86400000', 10),
+  max: parseInt(process.env.GENERATION_MAX_REQUESTS || '10', 10),
   message: 'Daily generation limit reached. Please try again tomorrow.'
 });
 

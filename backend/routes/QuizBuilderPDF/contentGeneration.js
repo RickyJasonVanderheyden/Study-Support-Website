@@ -8,6 +8,7 @@ const FlashcardSet = require('../../models/FlashcardSet');
 const MindMap = require('../../models/MindMap');
 const AudioNotes = require('../../models/AudioNotes');
 const { extractText, deleteTempFile } = require('../../utils/fileExtractor');
+const { generationLimiter } = require('../../middleware/rateLimiter');
 const { generateQuizFromContent, summarizeContent } = require('../../services/quizGenerator');
 const { 
   generateFlashcardsFromContent, 
@@ -78,7 +79,7 @@ const parseDurationToSeconds = (duration) => {
  * @desc    Upload a file and generate a quiz from its content
  * @access  Public (for testing - add authMiddleware back for production)
  */
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', generationLimiter, upload.single('file'), async (req, res) => {
   let filePath = null;
   
   try {
@@ -227,7 +228,7 @@ router.post('/text', async (req, res) => {
  * @desc    Generate a summary of uploaded content
  * @access  Private
  */
-router.post('/summarize', upload.single('file'), async (req, res) => {
+router.post('/summarize', generationLimiter, upload.single('file'), async (req, res) => {
   let filePath = null;
   
   try {
@@ -270,7 +271,7 @@ router.post('/summarize', upload.single('file'), async (req, res) => {
  * @desc    Upload a file and generate flashcards from its content
  * @access  Public (for testing)
  */
-router.post('/flashcards', upload.single('file'), async (req, res) => {
+router.post('/flashcards', generationLimiter, upload.single('file'), async (req, res) => {
   let filePath = null;
   
   try {
@@ -350,7 +351,7 @@ router.post('/flashcards', upload.single('file'), async (req, res) => {
  * @desc    Upload a file and generate a mind map from its content
  * @access  Public (for testing)
  */
-router.post('/mindmap', upload.single('file'), async (req, res) => {
+router.post('/mindmap', generationLimiter, upload.single('file'), async (req, res) => {
   let filePath = null;
   
   try {
@@ -428,7 +429,7 @@ router.post('/mindmap', upload.single('file'), async (req, res) => {
  * @desc    Upload a file and generate audio notes from its content
  * @access  Public (for testing)
  */
-router.post('/audio', upload.single('file'), async (req, res) => {
+router.post('/audio', generationLimiter, upload.single('file'), async (req, res) => {
   let filePath = null;
   
   try {

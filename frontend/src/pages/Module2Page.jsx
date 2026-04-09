@@ -564,9 +564,9 @@ const Module2Page = () => {
   const filteredAudioNotes = audioNotes.filter(matchesSearch);
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <SiteHeader />
-      <div className="min-h-screen module2-ocean relative overflow-hidden flex flex-col" style={{ fontFamily: "'DM Sans', 'Segoe UI', Arial, sans-serif" }}>
+      <div className="module2-ocean relative flex-1 flex flex-col" style={{ fontFamily: "'DM Sans', 'Segoe UI', Arial, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap');
 
@@ -602,7 +602,6 @@ const Module2Page = () => {
           font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
           color: var(--text-dark);
           background: linear-gradient(160deg, #E8F5E9 0%, #F7F4EE 45%, #EDE8DF 100%);
-          min-height: 100vh;
         }
 
         /* ── Video background ── */
@@ -2010,20 +2009,12 @@ const Module2Page = () => {
         </>
       )}
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 mt-4 py-4 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center gap-3">
-            <p className="text-xs" style={{ color: '#A8BEB0' }}>
-              © 2026 Study Materials. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
       </div>
       </div>
-      <SiteFooter />
-    </>
+      <div style={{ position: 'relative', zIndex: 50, backgroundColor: '#173e1f' }}>
+        <SiteFooter />
+      </div>
+    </div>
   );
 };
 
@@ -2043,6 +2034,7 @@ const EmptyState = ({ icon: Icon, title, description, buttonText, onButtonClick 
       {buttonText}
     </button>
   </div>
+  
 );
 
 export default Module2Page;
