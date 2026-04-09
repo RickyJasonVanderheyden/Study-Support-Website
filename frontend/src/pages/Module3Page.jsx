@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Card from '../components/common/Card'; 
 import Button from '../components/common/Button';
+import SiteHeader from '../components/layout/SiteHeader';
+import SiteFooter from '../components/layout/SiteFooter';
 import API from '../services/api';
 
 const PAGE_SIZE = 6;
@@ -390,127 +392,126 @@ const Module3Page = () => {
   }, [sortedSessions, page]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#EAF4ED] to-[#FDFCF9] p-6 md:p-8 text-slate-800 font-sans">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex justify-end mb-2">
-          <Button variant="danger" className="bg-red-500 hover:bg-red-600 text-white border-none font-bold shadow-md px-6 py-2 rounded-lg transition-colors" onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/login'); }}>
-            Logout
-          </Button>
-        </div>
-        
-        <div className="relative w-full rounded-[2.5rem] bg-gradient-to-r from-[#173e1f] to-[#1e5027] overflow-hidden shadow-2xl mb-12 mt-4 flex min-h-[380px] group/banner">
-          {/* Decorative background shapes */}
-          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-            <div className="absolute -top-[20%] -right-[10%] w-[60%] h-[140%] bg-gradient-to-br from-[#276332] to-[#122e17] rounded-l-full transform rotate-12 opacity-80 mix-blend-overlay transition-transform duration-1000 group-hover/banner:rotate-6"></div>
-            <div className="absolute bottom-0 left-[20%] w-64 h-64 bg-emerald-400/20 blur-3xl rounded-full"></div>
-            <div className="absolute top-10 right-[30%] w-48 h-48 bg-amber-400/20 blur-3xl rounded-full"></div>
-          </div>
-
-          <div className="relative z-10 flex flex-col md:flex-row items-center w-full">
-            {/* Text Content */}
-            <div className="flex-1 p-10 md:p-14 lg:p-16">
-              <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 backdrop-blur-md text-emerald-100 font-bold text-sm mb-6 border border-white/20 shadow-xl">
-                Learn Together, Grow Together
-              </div>
-              <h1 className="text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-extrabold text-white tracking-tight leading-tight">
-                Peer-to-Peer<br/>
-                <span className="text-emerald-300">Kuppi Sessions</span>
-              </h1>
-              <p className="text-emerald-50/90 mt-6 font-medium text-lg lg:text-xl leading-relaxed max-w-lg">
-                Join forces with your peers! Create, discover, and manage student-led study sessions designed to boost collaboration and supercharge your academic success.
-              </p>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#EAF4ED] to-[#FDFCF9] text-slate-800 font-sans">
+      <SiteHeader />
+      <main className="flex-1 p-6 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="relative w-full rounded-[2.5rem] bg-gradient-to-r from-[#173e1f] to-[#1e5027] overflow-hidden shadow-2xl mb-12 mt-4 flex min-h-[380px] group/banner">
+            {/* Decorative background shapes */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+              <div className="absolute -top-[20%] -right-[10%] w-[60%] h-[140%] bg-gradient-to-br from-[#276332] to-[#122e17] rounded-l-full transform rotate-12 opacity-80 mix-blend-overlay transition-transform duration-1000 group-hover/banner:rotate-6"></div>
+              <div className="absolute bottom-0 left-[20%] w-64 h-64 bg-emerald-400/20 blur-3xl rounded-full"></div>
+              <div className="absolute top-10 right-[30%] w-48 h-48 bg-amber-400/20 blur-3xl rounded-full"></div>
             </div>
-            
-            {/* Creative Image placement: tilted interactive card */}
-            <div className="w-full md:w-1/2 flex justify-center md:justify-end items-center p-8 md:p-0 md:pr-16 relative animate-float">
-              {/* Creative Image Frame */}
-              <div className="relative w-64 h-64 lg:w-80 lg:h-80 xl:w-96 xl:h-96 rounded-[3rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[6px] border-white/10 transform rotate-6 hover:-rotate-2 transition-all duration-700 ease-out cursor-pointer group flex-shrink-0">
-                <img src={userRole === 'admin' ? "/admin_dashboard.png" : "/peer_study_session.png"} alt={userRole === 'admin' ? "Admin Dashboard" : "Students studying together"} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 ease-out" />
-                <div className="absolute inset-0 bg-gradient-to-tr from-[#173e1f]/40 to-transparent pointer-events-none opacity-60"></div>
-                <div className="absolute inset-0 border-[4px] border-white/20 rounded-[2.5rem] pointer-events-none"></div>
+
+            <div className="relative z-10 flex flex-col md:flex-row items-center w-full">
+              {/* Text Content */}
+              <div className="flex-1 p-10 md:p-14 lg:p-16">
+                <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 backdrop-blur-md text-emerald-100 font-bold text-sm mb-6 border border-white/20 shadow-xl">
+                  Learn Together, Grow Together
+                </div>
+                <h1 className="text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-extrabold text-white tracking-tight leading-tight">
+                  Peer-to-Peer<br/>
+                  <span className="text-emerald-300">Kuppi Sessions</span>
+                </h1>
+                <p className="text-emerald-50/90 mt-6 font-medium text-lg lg:text-xl leading-relaxed max-w-lg">
+                  Join forces with your peers! Create, discover, and manage student-led study sessions designed to boost collaboration and supercharge your academic success.
+                </p>
+              </div>
+              
+              {/* Creative Image placement: tilted interactive card */}
+              <div className="w-full md:w-1/2 flex justify-center md:justify-end items-center p-8 md:p-0 md:pr-16 relative animate-float">
+                {/* Creative Image Frame */}
+                <div className="relative w-64 h-64 lg:w-80 lg:h-80 xl:w-96 xl:h-96 rounded-[3rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[6px] border-white/10 transform rotate-6 hover:-rotate-2 transition-all duration-700 ease-out cursor-pointer group flex-shrink-0">
+                  <img src={userRole === 'admin' ? "/admin_dashboard.png" : "/peer_study_session.png"} alt={userRole === 'admin' ? "Admin Dashboard" : "Students studying together"} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 ease-out" />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-[#173e1f]/40 to-transparent pointer-events-none opacity-60"></div>
+                  <div className="absolute inset-0 border-[4px] border-white/20 rounded-[2.5rem] pointer-events-none"></div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {userRole === 'admin' && (
-          <SessionForm
-            value={sessionForm}
-            errors={formErrors}
-            onChangeField={handleSessionFieldChange}
-            onSubmit={handleCreateSession}
-            loading={creating}
-            editing={Boolean(editingSessionId)}
-            onCancel={cancelEdit}
-          />
-        )}
-
-        <div>
-          <h2 className="text-2xl font-bold text-[#276332] mb-5">Session Browser</h2>
-          <Card className="space-y-4 mb-6 bg-white text-slate-800 border border-emerald-100 shadow-sm rounded-xl p-5">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <input className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]" placeholder="Search lecture title or topic" value={searchText} onChange={(e) => { if (!searchText && e.target.value) setSortBy('rating_desc'); setSearchText(e.target.value); }} />
-              <input className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]" placeholder="Module code" value={moduleFilter} onChange={(e) => { if (!moduleFilter && e.target.value) setSortBy('rating_desc'); setModuleFilter(e.target.value); }} />
-              <input className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]" placeholder="Search by host" value={hostFilter} onChange={(e) => setHostFilter(e.target.value)} />
-              <select className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 focus:border-[#276332] focus:ring-[#276332]" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                <option value="date_asc">Date: Soonest</option>
-                <option value="date_desc">Date: Latest</option>
-                <option value="rating_desc">Rating: High to Low</option>
-                <option value="seats_desc">Most Joined</option>
-              </select>
-              <div className="flex gap-2 items-center">
-                {userRole === 'admin' ? (
-                  <>
-                    <input
-                      className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332] flex-1 min-w-0"
-                      type="email"
-                      placeholder="Email for hosted tab"
-                      value={joinedEmail}
-                      onChange={(e) => setJoinedEmail(e.target.value)}
-                    />
-                    <Button size="sm" className="bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold shadow-sm whitespace-nowrap px-4" onClick={handleLoadUserSessions}>Load</Button>
-                  </>
-                ) : (
-                  <Button size="sm" className="bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold shadow-sm whitespace-nowrap px-4" onClick={handleLoadUserSessions}>Load My Sessions</Button>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-3 mt-4">
-              <button className={`px-5 py-2 text-sm transition-all border-2 ${activeTab === 'all' ? 'bg-[#556B2F] border-[#556B2F] text-white font-bold shadow-sm rounded-lg' : 'bg-transparent border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:border-[#556B2F] hover:text-white font-bold rounded-lg'}`} onClick={() => setActiveTab('all')}>All Sessions</button>
-              <button className={`px-5 py-2 text-sm transition-all border-2 ${activeTab === 'joined' ? 'bg-[#556B2F] border-[#556B2F] text-white font-bold shadow-sm rounded-lg' : 'bg-transparent border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:border-[#556B2F] hover:text-white font-bold rounded-lg'}`} onClick={() => setActiveTab('joined')}>{userRole === 'admin' ? 'My Hosted Sessions' : 'My Joined Sessions'}</button>
-            </div>
-          </Card>
-
-          {loading ? (
-            <Card className="bg-white text-slate-500 border border-emerald-100 shadow-sm text-center py-8 font-medium"><p>Loading sessions...</p></Card>
-          ) : pagedSessions.length === 0 ? (
-            <Card className="bg-white text-slate-500 border border-emerald-100 shadow-sm text-center py-8 font-medium"><p>No matching sessions found.</p></Card>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {pagedSessions.map((session) => (
-                  <div key={session._id} className="space-y-3">
-                    <SessionCard session={session} onOpen={openSessionDetail} />
-                    {userRole === 'admin' && (
-                      <div className="flex gap-3">
-                        <Button size="sm" variant="secondary" className="bg-white border-2 border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:text-white hover:border-[#556B2F] font-bold" onClick={() => startEditSession(session)}>Edit</Button>
-                        <Button size="sm" variant="danger" className="bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 font-bold" onClick={() => handleDeleteSession(session)}>Delete</Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center justify-end gap-4 mt-8">
-                <Button size="sm" variant="secondary" className="bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-bold" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>
-                <span className="text-sm text-slate-600 font-bold">Page <span className="text-[#276332] text-base">{page}</span> of {totalPages}</span>
-                <Button size="sm" variant="secondary" className="bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-bold" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-              </div>
-            </>
+          {userRole === 'admin' && (
+            <SessionForm
+              value={sessionForm}
+              errors={formErrors}
+              onChangeField={handleSessionFieldChange}
+              onSubmit={handleCreateSession}
+              loading={creating}
+              editing={Boolean(editingSessionId)}
+              onCancel={cancelEdit}
+            />
           )}
+
+          <div>
+            <h2 className="text-2xl font-bold text-[#276332] mb-5">Session Browser</h2>
+            <Card className="space-y-4 mb-6 bg-white text-slate-800 border border-emerald-100 shadow-sm rounded-xl p-5">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <input className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]" placeholder="Search lecture title or topic" value={searchText} onChange={(e) => { if (!searchText && e.target.value) setSortBy('rating_desc'); setSearchText(e.target.value); }} />
+                <input className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]" placeholder="Module code" value={moduleFilter} onChange={(e) => { if (!moduleFilter && e.target.value) setSortBy('rating_desc'); setModuleFilter(e.target.value); }} />
+                <input className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]" placeholder="Search by host" value={hostFilter} onChange={(e) => setHostFilter(e.target.value)} />
+                <select className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 focus:border-[#276332] focus:ring-[#276332]" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                  <option value="date_asc">Date: Soonest</option>
+                  <option value="date_desc">Date: Latest</option>
+                  <option value="rating_desc">Rating: High to Low</option>
+                  <option value="seats_desc">Most Joined</option>
+                </select>
+                <div className="flex gap-2 items-center">
+                  {userRole === 'admin' ? (
+                    <>
+                      <input
+                        className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332] flex-1 min-w-0"
+                        type="email"
+                        placeholder="Email for hosted tab"
+                        value={joinedEmail}
+                        onChange={(e) => setJoinedEmail(e.target.value)}
+                      />
+                      <Button size="sm" className="bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold shadow-sm whitespace-nowrap px-4" onClick={handleLoadUserSessions}>Load</Button>
+                    </>
+                  ) : (
+                    <Button size="sm" className="bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold shadow-sm whitespace-nowrap px-4" onClick={handleLoadUserSessions}>Load My Sessions</Button>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button className={`px-5 py-2 text-sm transition-all border-2 ${activeTab === 'all' ? 'bg-[#556B2F] border-[#556B2F] text-white font-bold shadow-sm rounded-lg' : 'bg-transparent border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:border-[#556B2F] hover:text-white font-bold rounded-lg'}`} onClick={() => setActiveTab('all')}>All Sessions</button>
+                <button className={`px-5 py-2 text-sm transition-all border-2 ${activeTab === 'joined' ? 'bg-[#556B2F] border-[#556B2F] text-white font-bold shadow-sm rounded-lg' : 'bg-transparent border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:border-[#556B2F] hover:text-white font-bold rounded-lg'}`} onClick={() => setActiveTab('joined')}>{userRole === 'admin' ? 'My Hosted Sessions' : 'My Joined Sessions'}</button>
+              </div>
+            </Card>
+
+            {loading ? (
+              <Card className="bg-white text-slate-500 border border-emerald-100 shadow-sm text-center py-8 font-medium"><p>Loading sessions...</p></Card>
+            ) : pagedSessions.length === 0 ? (
+              <Card className="bg-white text-slate-500 border border-emerald-100 shadow-sm text-center py-8 font-medium"><p>No matching sessions found.</p></Card>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {pagedSessions.map((session) => (
+                    <div key={session._id} className="space-y-3">
+                      <SessionCard session={session} onOpen={openSessionDetail} />
+                      {userRole === 'admin' && (
+                        <div className="flex gap-3">
+                          <Button size="sm" variant="secondary" className="bg-white border-2 border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:text-white hover:border-[#556B2F] font-bold" onClick={() => startEditSession(session)}>Edit</Button>
+                          <Button size="sm" variant="danger" className="bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 font-bold" onClick={() => handleDeleteSession(session)}>Delete</Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-end gap-4 mt-8">
+                  <Button size="sm" variant="secondary" className="bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-bold" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>
+                  <span className="text-sm text-slate-600 font-bold">Page <span className="text-[#276332] text-base">{page}</span> of {totalPages}</span>
+                  <Button size="sm" variant="secondary" className="bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-bold" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+                </div>
+              </>
+            )}
         </div>
       </div>
+      </main>
+      <SiteFooter />
     </div>
   );
+
 };
 
 export default Module3Page;

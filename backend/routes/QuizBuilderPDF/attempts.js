@@ -4,34 +4,12 @@ const authMiddleware = require('../../middleware/authMiddleware');
 const Quiz = require('../../models/Quiz');
 const QuizAttempt = require('../../models/QuizAttempt');
 
-// Optional auth for mixed testing + authenticated flow.
-const optionalAuth = async (req, _res, next) => {
-  const hasAuthHeader = !!req.header('Authorization');
-  if (!hasAuthHeader) {
-    return next();
-  }
-
-  try {
-    await new Promise((resolve, reject) => {
-      authMiddleware(req, {
-        status: () => ({
-          json: (payload) => reject(new Error(payload?.error || 'Unauthorized'))
-        })
-      }, resolve);
-    });
-  } catch (_e) {
-    req.user = null;
-  }
-
-  next();
-};
-
 /**
  * @route   POST /api/module2/attempts/:quizId/submit
  * @desc    Submit quiz answers and get results
- * @access  Public (for testing)
+ * @access  Private
  */
-router.post('/:quizId/submit', optionalAuth, async (req, res) => {
+router.post('/:quizId/submit', authMiddleware, async (req, res) => {
   try {
     const { answers, timeTaken } = req.body;
     
@@ -39,7 +17,7 @@ router.post('/:quizId/submit', optionalAuth, async (req, res) => {
       return res.status(400).json({ error: 'Answers are required' });
     }
 
-    const quiz = await Quiz.findById(req.params.quizId);
+    const quiz = await Quiz.findOne({ _id: req.params.quizId, user: req.user.id });
     
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
@@ -68,7 +46,7 @@ router.post('/:quizId/submit', optionalAuth, async (req, res) => {
     // Create attempt record
     const attempt = new QuizAttempt({
       quiz: quiz._id,
-      user: req.user?.id || null, // Optional user for testing
+      user: req.user.id,
       answers: gradedAnswers,
       score,
       percentage,

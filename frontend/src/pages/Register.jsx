@@ -74,7 +74,7 @@ const Register = () => {
       toast.success(`Registered successfully as ${user.role || 'student'}`);
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      navigate('/module3');
+      navigate('/');
     } catch (error) {
       console.error(error);
       const networkError = error.message === 'Network Error' ? 'Backend server is not running or offline' : '';
