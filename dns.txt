@@ -1,0 +1,1 @@
+[{"name":"ac-crqplx7-shard-00-01.ktp5smc.mongodb.net","port":27017,"priority":0,"weight":0,"type":"SRV"},{"name":"ac-crqplx7-shard-00-02.ktp5smc.mongodb.net","port":27017,"priority":0,"weight":0,"type":"SRV"},{"name":"ac-crqplx7-shard-00-00.ktp5smc.mongodb.net","port":27017,"priority":0,"weight":0,"type":"SRV"}]

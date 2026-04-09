@@ -1,10 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
 import {
   ArrowLeft,
   FileText,
   Upload,
   X,
-  GraduationCap,
   BookOpen,
   Network,
   Volume2,
@@ -28,14 +27,43 @@ import {
   Clock,
   BarChart3
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import BookLoader from '../components/common/BookLoader';
+import SiteHeader from '../components/layout/SiteHeader';
+import SiteFooter from '../components/layout/SiteFooter';
 import module2BackgroundVideo from '../components/quizpdfs/63328-506377472_medium.mp4';
 
 const Module2Page = () => {
   const navigate = useNavigate();
+
+  const isUnauthorizedError = (error) => error?.response?.status === 401;
+
+  const getCurrentUserId = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      return user?.id || user?._id || null;
+    } catch (_error) {
+      return null;
+    }
+  };
+
+  const getModule2StorageKey = (key, userId) => {
+    return `module2_${key}_${userId || 'anonymous'}`;
+  };
+
+  const clearLegacyModule2Storage = () => {
+    sessionStorage.removeItem('module2_fileName');
+    sessionStorage.removeItem('module2_generatedContent');
+  };
+
+  const redirectToLogin = () => {
+    toast.error('Please log in to access AI Tools');
+    navigate('/login');
+  };
+
+  const currentUserId = getCurrentUserId();
 
   // File upload state
   const [file, setFile] = useState(null);
@@ -43,7 +71,9 @@ const Module2Page = () => {
 
   // Load saved file name from sessionStorage (file object can't be serialized)
   const [savedFileName, setSavedFileName] = useState(() => {
-    return sessionStorage.getItem('module2_fileName') || null;
+    if (!currentUserId) return null;
+    clearLegacyModule2Storage();
+    return sessionStorage.getItem(getModule2StorageKey('fileName', currentUserId)) || null;
   });
 
   // Generation state
@@ -52,7 +82,18 @@ const Module2Page = () => {
 
   // Load generated content from sessionStorage on mount
   const [generatedContent, setGeneratedContent] = useState(() => {
-    const saved = sessionStorage.getItem('module2_generatedContent');
+    if (!currentUserId) {
+      clearLegacyModule2Storage();
+      return {
+        quiz: null,
+        flashcards: null,
+        mindmap: null,
+        audio: null
+      };
+    }
+
+    clearLegacyModule2Storage();
+    const saved = sessionStorage.getItem(getModule2StorageKey('generatedContent', currentUserId));
     return saved ? JSON.parse(saved) : {
       quiz: null,
       flashcards: null,
@@ -61,18 +102,40 @@ const Module2Page = () => {
     };
   });
 
+  useEffect(() => {
+    if (!currentUserId) {
+      clearLegacyModule2Storage();
+      setSavedFileName(null);
+      setGeneratedContent({ quiz: null, flashcards: null, mindmap: null, audio: null });
+      return;
+    }
+
+    const storedUserId = sessionStorage.getItem('module2_storageUserId');
+    if (storedUserId !== currentUserId) {
+      clearLegacyModule2Storage();
+      setFile(null);
+      setSavedFileName(sessionStorage.getItem(getModule2StorageKey('fileName', currentUserId)) || null);
+      const saved = sessionStorage.getItem(getModule2StorageKey('generatedContent', currentUserId));
+      setGeneratedContent(saved ? JSON.parse(saved) : { quiz: null, flashcards: null, mindmap: null, audio: null });
+      sessionStorage.setItem('module2_storageUserId', currentUserId);
+    }
+  }, [currentUserId]);
+
   // Persist generated content to sessionStorage
   useEffect(() => {
-    sessionStorage.setItem('module2_generatedContent', JSON.stringify(generatedContent));
-  }, [generatedContent]);
+    if (!currentUserId) return;
+    sessionStorage.setItem(getModule2StorageKey('generatedContent', currentUserId), JSON.stringify(generatedContent));
+    sessionStorage.setItem('module2_storageUserId', currentUserId);
+  }, [generatedContent, currentUserId]);
 
   // Persist file name
   useEffect(() => {
-    if (file) {
-      sessionStorage.setItem('module2_fileName', file.name);
+    if (file && currentUserId) {
+      sessionStorage.setItem(getModule2StorageKey('fileName', currentUserId), file.name);
+      sessionStorage.setItem('module2_storageUserId', currentUserId);
       setSavedFileName(file.name);
     }
-  }, [file]);
+  }, [file, currentUserId]);
 
   // Check if there's generated content without a current file
   const hasGeneratedContent = Object.values(generatedContent).some(v => v !== null);
@@ -154,6 +217,13 @@ const Module2Page = () => {
     }
   ];
 
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      redirectToLogin();
+    }
+  }, []);
+
   // Fetch existing content
   useEffect(() => {
     if (activeTab === 'library') {
@@ -167,10 +237,10 @@ const Module2Page = () => {
     setLoadingContent(true);
     try {
       const [quizzesRes, flashcardsRes, mindmapsRes, audioRes] = await Promise.all([
-        api.get('/module2/challenges').catch(() => ({ data: { quizzes: [] } })),
-        api.get('/module2/generate/flashcards').catch(() => ({ data: [] })),
-        api.get('/module2/generate/mindmaps').catch(() => ({ data: [] })),
-        api.get('/module2/generate/audio').catch(() => ({ data: [] }))
+        api.get('/module2/challenges'),
+        api.get('/module2/generate/flashcards'),
+        api.get('/module2/generate/mindmaps'),
+        api.get('/module2/generate/audio')
       ]);
 
       setQuizzes(quizzesRes.data.quizzes || []);
@@ -178,7 +248,12 @@ const Module2Page = () => {
       setMindMaps(mindmapsRes.data || []);
       setAudioNotes(audioRes.data || []);
     } catch (error) {
+      if (isUnauthorizedError(error)) {
+        redirectToLogin();
+        return;
+      }
       console.error('Error fetching content:', error);
+      toast.error('Failed to load your AI Tools content');
     } finally {
       setLoadingContent(false);
     }
@@ -188,15 +263,15 @@ const Module2Page = () => {
     setLoadingProgress(true);
     try {
       const [progressRes, contentRes] = await Promise.all([
-        api.get('/module2/progress').catch(() => ({ data: { progress: null } })),
-        api.get('/module2/challenges').catch(() => ({ data: { quizzes: [] } }))
+        api.get('/module2/progress'),
+        api.get('/module2/challenges')
       ]);
 
       // Get flashcards/mindmaps/audio counts
       const [flashcardsRes, mindmapsRes, audioRes] = await Promise.all([
-        api.get('/module2/generate/flashcards').catch(() => ({ data: [] })),
-        api.get('/module2/generate/mindmaps').catch(() => ({ data: [] })),
-        api.get('/module2/generate/audio').catch(() => ({ data: [] }))
+        api.get('/module2/generate/flashcards'),
+        api.get('/module2/generate/mindmaps'),
+        api.get('/module2/generate/audio')
       ]);
 
       const totalQuizzesFromChallenges = contentRes.data?.quizzes?.length || 0;
@@ -210,7 +285,12 @@ const Module2Page = () => {
         totalAudioNotes: audioRes.data?.length || 0
       });
     } catch (error) {
+      if (isUnauthorizedError(error)) {
+        redirectToLogin();
+        return;
+      }
       console.error('Error fetching progress:', error);
+      toast.error('Failed to load your progress data');
     } finally {
       setLoadingProgress(false);
     }
@@ -250,11 +330,13 @@ const Module2Page = () => {
       // 3. Process valid file
       if (savedFileName && droppedFile.name !== savedFileName) {
         setGeneratedContent({ quiz: null, flashcards: null, mindmap: null, audio: null });
-        sessionStorage.removeItem('module2_generatedContent');
+        if (currentUserId) {
+          sessionStorage.removeItem(getModule2StorageKey('generatedContent', currentUserId));
+        }
       }
       setFile(droppedFile);
     }
-  }, [savedFileName]);
+  }, [savedFileName, currentUserId]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -277,7 +359,9 @@ const Module2Page = () => {
       // 3. Process valid file
       if (savedFileName && selectedFile.name !== savedFileName) {
         setGeneratedContent({ quiz: null, flashcards: null, mindmap: null, audio: null });
-        sessionStorage.removeItem('module2_generatedContent');
+        if (currentUserId) {
+          sessionStorage.removeItem(getModule2StorageKey('generatedContent', currentUserId));
+        }
       }
       setFile(selectedFile);
     }
@@ -293,8 +377,10 @@ const Module2Page = () => {
     setFile(null);
     setSavedFileName(null);
     setGeneratedContent({ quiz: null, flashcards: null, mindmap: null, audio: null });
-    sessionStorage.removeItem('module2_fileName');
-    sessionStorage.removeItem('module2_generatedContent');
+    if (currentUserId) {
+      sessionStorage.removeItem(getModule2StorageKey('fileName', currentUserId));
+      sessionStorage.removeItem(getModule2StorageKey('generatedContent', currentUserId));
+    }
   };
 
   const formatFileSize = (bytes) => {
@@ -375,7 +461,13 @@ const Module2Page = () => {
       setShowSuccessModal(true);
     } catch (error) {
       console.error('Generation error:', error);
-      toast.error(error.response?.data?.error || `Failed to generate ${type}`);
+      if (isUnauthorizedError(error)) {
+        redirectToLogin();
+      } else if (error.code === 'ERR_NETWORK') {
+        toast.error('Cannot connect to server. Ensure backend is running on http://localhost:5000');
+      } else {
+        toast.error(error.response?.data?.error || `Failed to generate ${type}`);
+      }
     } finally {
       setGenerating(false);
       setGenerationType(null);
@@ -429,7 +521,11 @@ const Module2Page = () => {
       toast.success('Deleted successfully');
       fetchAllContent(); // Refresh the list
     } catch (error) {
-      toast.error('Failed to delete');
+      if (isUnauthorizedError(error)) {
+        redirectToLogin();
+        return;
+      }
+      toast.error(error.response?.data?.error || 'Failed to delete');
     }
   };
 
@@ -468,7 +564,9 @@ const Module2Page = () => {
   const filteredAudioNotes = audioNotes.filter(matchesSearch);
 
   return (
-    <div className="min-h-screen module2-ocean relative overflow-hidden" style={{ fontFamily: "'DM Sans', 'Segoe UI', Arial, sans-serif" }}>
+    <div className="flex flex-col min-h-screen">
+      <SiteHeader />
+      <div className="module2-ocean relative flex-1 flex flex-col" style={{ fontFamily: "'DM Sans', 'Segoe UI', Arial, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap');
 
@@ -504,7 +602,6 @@ const Module2Page = () => {
           font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
           color: var(--text-dark);
           background: linear-gradient(160deg, #E8F5E9 0%, #F7F4EE 45%, #EDE8DF 100%);
-          min-height: 100vh;
         }
 
         /* ── Video background ── */
@@ -805,121 +902,59 @@ const Module2Page = () => {
         <source src={module2BackgroundVideo} type="video/mp4" />
       </video>
       <div className="video-overlay" />
-      <div className="content-layer">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3">
-                <div className="relative p-2 rounded-xl" style={{ background: 'linear-gradient(135deg, #1E4D35 0%, #2E5C42 100%)', boxShadow: '0 4px 16px rgba(30,77,53,0.28)' }}>
-                  <GraduationCap className="w-5 h-5 text-white" />
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border-2" style={{ borderColor: '#F7F4EE' }} />
-                </div>
-                <div>
-                  <span className="text-base font-bold tracking-tight" style={{ color: '#1E4D35', letterSpacing: '-0.01em' }}>AI Study</span>
-                  <span className="text-base font-bold tracking-tight" style={{ color: '#E8820C' }}> Tools</span>
-                </div>
-              </div>
-
-              <nav className="hidden md:flex items-center gap-1">
-                <Link to="/module2" className="px-3 py-1.5 text-sm font-semibold rounded-lg transition-all" style={{ color: '#C96800', background: '#FFE8C8' }}>Dashboard</Link>
-                <span className="px-3 py-1.5 text-sm rounded-lg cursor-pointer transition-all" style={{ color: '#7A9080' }}>Features</span>
-                <span className="px-3 py-1.5 text-sm rounded-lg cursor-pointer transition-all" style={{ color: '#7A9080' }}>Pricing</span>
-                <span className="px-3 py-1.5 text-sm rounded-lg cursor-pointer transition-all" style={{ color: '#7A9080' }}>Docs</span>
-              </nav>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center rounded-xl px-3 py-2 gap-2" style={{ background: '#F7F4EE', border: '1px solid #D8E8DC' }}>
-                <Search className="w-4 h-4" style={{ color: '#A8BEB0' }} />
-                <input
-                  type="text"
-                  placeholder="Search library..."
-                  value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); if (activeTab !== 'library') setActiveTab('library'); }}
-                  className="bg-transparent text-sm outline-none w-40"
-                  style={{ color: '#3D5246' }}
-                />
-              </div>
-
-              {(activeTab === 'library' || activeTab === 'progress') && (
-                <button
-                  onClick={() => setActiveTab('generate')}
-                  className="hidden md:flex items-center gap-2 px-4 py-2 text-white rounded-xl text-sm font-semibold transition-all bg-gradient-to-r from-orange-500 to-amber-500"
-                >
-                  <Upload className="w-4 h-4" />
-                  Upload
-                </button>
-              )}
-
-              <Link
-                to="/"
-                className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl transition-all"
-                style={{ color: '#7A9080', border: '1px solid #D8E8DC' }}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
-              </Link>
-
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #E8820C, #C96800)', boxShadow: '0 2px 10px rgba(232,130,12,0.35)' }}>
-                U
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
+      <div className="content-layer flex flex-col flex-1">
       {/* Tab Navigation */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 py-3">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: '#D6ECD8', border: '1px solid rgba(30,77,53,0.2)' }}>
-                  <BookOpen className="w-3.5 h-3.5" style={{ color: '#1E4D35' }} />
-                  <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#1E4D35' }}>AI Study Tools</span>
-                </div>
-              </div>
-
-              <div className="flex gap-1 ml-4">
+            <div className="flex items-center gap-6">
+              <div className="flex gap-1">
                 <button
                   onClick={() => setActiveTab('generate')}
                   className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all ${activeTab === 'generate'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent hover:text-gray-700'
+                      ? 'border-[#E8820C] text-[#1A2E23]'
+                      : 'border-transparent text-[#7A9080] hover:text-[#3D5246]'
                     }`}
-                  style={activeTab !== 'generate' ? { color: '#A8BEB0' } : {}}
                 >
                   Generate New
                 </button>
                 <button
                   onClick={() => setActiveTab('library')}
                   className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all ${activeTab === 'library'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent hover:text-gray-700'
+                      ? 'border-[#E8820C] text-[#1A2E23]'
+                      : 'border-transparent text-[#7A9080] hover:text-[#3D5246]'
                     }`}
-                  style={activeTab !== 'library' ? { color: '#A8BEB0' } : {}}
                 >
                   My Library
                 </button>
                 <button
                   onClick={() => setActiveTab('progress')}
                   className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all ${activeTab === 'progress'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent hover:text-gray-700'
+                      ? 'border-[#E8820C] text-[#1A2E23]'
+                      : 'border-transparent text-[#7A9080] hover:text-[#3D5246]'
                     }`}
-                  style={activeTab !== 'progress' ? { color: '#A8BEB0' } : {}}
                 >
                   Progress
                 </button>
               </div>
             </div>
+            
+            <div className="flex items-center px-3 py-2 gap-2 bg-[#F7F4EE] border border-[#D8E8DC]">
+              <Search className="w-4 h-4" style={{ color: '#A8BEB0' }} />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); if (activeTab !== 'library') setActiveTab('library'); }}
+                className="bg-transparent text-sm outline-none w-40"
+                style={{ color: '#3D5246' }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
         {activeTab === 'generate' && (
           <div className="space-y-6">
             {/* Upload Section */}
@@ -1974,18 +2009,10 @@ const Module2Page = () => {
         </>
       )}
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 mt-12 py-6 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center gap-3">
-            <div className="p-1.5 rounded-lg" style={{ background: 'linear-gradient(135deg,#E8820C,#C96800)' }}>
-            </div>
-            <p className="text-sm" style={{ color: '#7A9080' }}>
-              © 2026 <span style={{ color: '#C96800', fontWeight: 600 }}>AI Study Tools</span>. All rights reserved. Built for modern learners.
-            </p>
-          </div>
-        </div>
-      </footer>
+      </div>
+      </div>
+      <div style={{ position: 'relative', zIndex: 50, backgroundColor: '#173e1f' }}>
+        <SiteFooter />
       </div>
     </div>
   );
@@ -2007,6 +2034,7 @@ const EmptyState = ({ icon: Icon, title, description, buttonText, onButtonClick 
       {buttonText}
     </button>
   </div>
+  
 );
 
 export default Module2Page;

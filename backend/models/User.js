@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide an email'],
     unique: true,
     lowercase: true,
-    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,})+$/, 'Please provide a valid email']
   },
   password: {
     type: String,
@@ -22,15 +22,26 @@ const userSchema = new mongoose.Schema({
   registrationNumber: {
     type: String,
     required: [true, 'Please provide registration number'],
-    unique: true
+    unique: true,
+    match: [/^IT\d{8}$/i, 'Registration number must be IT followed by 8 digits (e.g., IT12345678)']
+  },
+  mobileNumber: {
+    type: String,
+    required: [true, 'Please provide mobile number'],
+    match: [/^\+\d{7,15}$/, 'Please provide a valid mobile number in international format (e.g., +94712345678)']
   },
   groupNumber: {
     type: String,
     default: null
   },
+  roleRequest: {
+    type: String,
+    enum: ['none', 'pending_session_lead', 'rejected'],
+    default: 'none'
+  },
   role: {
     type: String,
-    enum: ['student', 'instructor', 'admin'],
+    enum: ['student', 'session_lead', 'super_admin'],
     default: 'student'
   },
   createdAt: {

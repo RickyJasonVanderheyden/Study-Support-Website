@@ -5,13 +5,12 @@ const Quiz = require('../../models/Quiz');
 
 /**
  * @route   GET /api/module2/challenges
- * @desc    Get all quizzes (public for testing)
- * @access  Public
+ * @desc    Get all quizzes for current user
+ * @access  Private
  */
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    // Get all quizzes for testing (no user filter)
-    const quizzes = await Quiz.find()
+    const quizzes = await Quiz.find({ user: req.user.id })
       .select('-questions') // Don't send questions in list view
       .sort({ createdAt: -1 });
 
@@ -27,12 +26,34 @@ router.get('/', async (req, res) => {
 
 /**
  * @route   GET /api/module2/challenges/:id
- * @desc    Get a single quiz by ID (with questions for taking the quiz)
- * @access  Public
+ * @desc    Get all public quizzes created by current user
+ * @access  Private
  */
-router.get('/:id', async (req, res) => {
+router.get('/public/all', authMiddleware, async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.id);
+    const quizzes = await Quiz.find({ isPublic: true, user: req.user.id })
+      .select('-questions')
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.json({
+      count: quizzes.length,
+      quizzes
+    });
+  } catch (error) {
+    console.error('Error fetching public quizzes:', error);
+    res.status(500).json({ error: 'Failed to fetch public quizzes' });
+  }
+});
+
+/**
+ * @route   GET /api/module2/challenges/:id
+ * @desc    Get a single quiz by ID (owned by current user)
+ * @access  Private
+ */
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findOne({ _id: req.params.id, user: req.user.id });
 
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
@@ -47,12 +68,12 @@ router.get('/:id', async (req, res) => {
 
 /**
  * @route   GET /api/module2/challenges/:id/take
- * @desc    Get quiz for taking (questions without correct answers)
- * @access  Public
+ * @desc    Get quiz for taking (owned by current user)
+ * @access  Private
  */
-router.get('/:id/take', async (req, res) => {
+router.get('/:id/take', authMiddleware, async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.id);
+    const quiz = await Quiz.findOne({ _id: req.params.id, user: req.user.id });
 
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
@@ -89,14 +110,10 @@ router.get('/:id/take', async (req, res) => {
  */
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.id);
+    const quiz = await Quiz.findOne({ _id: req.params.id, user: req.user.id });
 
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
-    }
-
-    if (quiz.user.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' });
     }
 
     const { title, description, timeLimit, isPublic, difficulty, subject } = req.body;
@@ -132,45 +149,22 @@ router.put('/:id', authMiddleware, async (req, res) => {
 /**
  * @route   DELETE /api/module2/challenges/:id
  * @desc    Delete a quiz
- * @access  Public (for testing)
+ * @access  Private
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.id);
+    const quiz = await Quiz.findOne({ _id: req.params.id, user: req.user.id });
 
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
-    await Quiz.findByIdAndDelete(req.params.id);
+    await Quiz.deleteOne({ _id: req.params.id, user: req.user.id });
 
     res.json({ message: 'Quiz deleted successfully' });
   } catch (error) {
     console.error('Error deleting quiz:', error);
     res.status(500).json({ error: 'Failed to delete quiz' });
-  }
-});
-
-/**
- * @route   GET /api/module2/challenges/public/all
- * @desc    Get all public quizzes
- * @access  Private
- */
-router.get('/public/all', authMiddleware, async (req, res) => {
-  try {
-    const quizzes = await Quiz.find({ isPublic: true })
-      .select('-questions')
-      .populate('user', 'name')
-      .sort({ createdAt: -1 })
-      .limit(50);
-
-    res.json({
-      count: quizzes.length,
-      quizzes
-    });
-  } catch (error) {
-    console.error('Error fetching public quizzes:', error);
-    res.status(500).json({ error: 'Failed to fetch public quizzes' });
   }
 });
 

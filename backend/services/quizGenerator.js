@@ -1,6 +1,121 @@
 const model = require('../config/gemini');
 const rateLimiter = require('../utils/geminiRateLimiter');
 
+async function generateContentWithRetry(prompt) {
+  const maxAttempts = Math.max(1, parseInt(process.env.GEMINI_RETRY_ATTEMPTS || '3', 10));
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await model.generateContent(prompt);
+    } catch (error) {
+      lastError = error;
+      const errorMsg = String(error?.message || '').toLowerCase();
+      const isTransient = (
+        errorMsg.includes('fetch failed') ||
+        errorMsg.includes('econnreset') ||
+        errorMsg.includes('enotfound') ||
+        errorMsg.includes('eai_again') ||
+        errorMsg.includes('etimedout') ||
+        errorMsg.includes('socket hang up')
+      );
+      
+      // Handle 429 rate limit errors with actual wait
+      if (errorMsg.includes('429')) {
+        const retryAfterSeconds = rateLimiter.extractRetryAfterSeconds(error);
+        console.warn(`⚠️ Rate limited (429). Waiting before retry...`);
+        await rateLimiter.handleRateLimitError(retryAfterSeconds);
+        continue; // Retry after waiting
+      }
+
+      // For transient network errors, do exponential backoff
+      if (isTransient && attempt < maxAttempts) {
+        const backoffMs = Math.min(10000, 1500 * attempt);
+        console.warn(`⚠️ Transient error. Retrying (${attempt}/${maxAttempts}) in ${Math.ceil(backoffMs / 1000)}s...`);
+        await rateLimiter.sleep(backoffMs);
+        continue;
+      }
+
+      // Non-transient error or last attempt - throw
+      throw error;
+    }
+  }
+
+  throw lastError;
+}
+
+// Build a deterministic fallback quiz when the Gemini API is unavailable.
+function buildFallbackQuizFromContent(content, options = {}) {
+  const {
+    numQuestions = 10,
+    difficulty = 'medium',
+    subject = 'General'
+  } = options;
+
+  const cleaned = (content || '').replace(/\s+/g, ' ').trim();
+  const sentenceCandidates = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 40)
+    .slice(0, 40);
+
+  const questions = [];
+  const targetCount = Math.max(1, parseInt(numQuestions, 10) || 10);
+
+  for (let i = 0; i < targetCount; i += 1) {
+    const source = sentenceCandidates[i % Math.max(sentenceCandidates.length, 1)] ||
+      'The source material discusses important concepts and practical applications.';
+
+    const conciseSource = source.length > 180 ? `${source.slice(0, 177)}...` : source;
+
+    const distractorPool = sentenceCandidates
+      .filter((s) => s !== source)
+      .slice(0, 12)
+      .map((s) => (s.length > 90 ? `${s.slice(0, 87)}...` : s));
+
+    while (distractorPool.length < 3) {
+      distractorPool.push(`Alternative interpretation ${distractorPool.length + 1} that is less supported by the text.`);
+    }
+
+    const optionsList = [
+      conciseSource,
+      distractorPool[0],
+      distractorPool[1],
+      distractorPool[2]
+    ];
+
+    questions.push({
+      question: `Which statement is best supported by the study material? (${i + 1})`,
+      options: optionsList,
+      correctAnswer: 0,
+      explanation: 'This option is taken directly from the provided content and is therefore the most strongly supported.'
+    });
+  }
+
+  return {
+    title: `Quiz on ${subject}`,
+    description: `A ${difficulty} difficulty quiz with ${targetCount} questions (generated using offline fallback mode).`,
+    questions,
+    difficulty,
+    subject
+  };
+}
+
+function buildFallbackSummary(content) {
+  const cleaned = (content || '').replace(/\s+/g, ' ').trim();
+  const sentences = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0)
+    .slice(0, 5);
+
+  if (sentences.length === 0) {
+    return 'Summary unavailable. Review the uploaded material directly.';
+  }
+
+  return sentences.map((sentence) => `- ${sentence}`).join('\n');
+}
+
 /**
  * Generate quiz questions from text content using Google Gemini AI
  * @param {string} content - The text content extracted from PDF
@@ -55,7 +170,7 @@ RESPOND ONLY WITH A VALID JSON OBJECT in this exact format (no markdown, no code
 The correctAnswer should be the index (0, 1, 2, or 3) of the correct option.`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await generateContentWithRetry(prompt);
     const response = await result.response;
     let text = response.text();
     
@@ -93,8 +208,16 @@ The correctAnswer should be the index (0, 1, 2, or 3) of the correct option.`;
     };
 
   } catch (error) {
-    console.error('Error generating quiz with Gemini:', error);
-    throw new Error(`Failed to generate quiz: ${error.message}`);
+    console.error('❌ Error generating quiz with Gemini:', {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      fullError: error.toString()
+    });
+
+    // Don't use fallback - let the error propagate so the client knows there's a problem
+    // This prevents silent failures and ensures proper error handling at the route level
+    throw error;
   }
 }
 
@@ -119,12 +242,19 @@ ${truncatedContent}
 Provide a clear, concise summary that captures the main ideas.`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await generateContentWithRetry(prompt);
     const response = await result.response;
     return response.text();
   } catch (error) {
-    console.error('Error summarizing content:', error);
-    throw new Error(`Failed to summarize content: ${error.message}`);
+    console.error('❌ Error summarizing content:', {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      fullError: error.toString()
+    });
+
+    // Don't use fallback - let the error propagate for proper error handling
+    throw error;
   }
 }
 
