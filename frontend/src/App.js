@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Module1Page from './pages/Module1Page';
 import Module2Page from './pages/Module2Page';
 import Module3Page from './pages/Module3Page';
+import Module3SessionDetailsPage from './pages/Module3SessionDetailsPage';
 import Module4Page from './pages/Module4Page';
 
 // Quiz Builder PDF Components - Individual content views
@@ -28,6 +29,7 @@ function App() {
           <Route path="/module1" element={<Module1Page />} />
           <Route path="/module2" element={<Module2Page />} />
           <Route path="/module3" element={<Module3Page />} />
+          <Route path="/module3/session/:id" element={<Module3SessionDetailsPage />} />
           <Route path="/module4" element={<Module4Page />} />
           
           {/* Quiz Routes */}

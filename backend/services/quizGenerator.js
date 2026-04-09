@@ -1,6 +1,63 @@
 const model = require('../config/gemini');
 const rateLimiter = require('../utils/geminiRateLimiter');
 
+// Build a deterministic fallback quiz when the Gemini API is unavailable.
+function buildFallbackQuizFromContent(content, options = {}) {
+  const {
+    numQuestions = 10,
+    difficulty = 'medium',
+    subject = 'General'
+  } = options;
+
+  const cleaned = (content || '').replace(/\s+/g, ' ').trim();
+  const sentenceCandidates = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 40)
+    .slice(0, 40);
+
+  const questions = [];
+  const targetCount = Math.max(1, parseInt(numQuestions, 10) || 10);
+
+  for (let i = 0; i < targetCount; i += 1) {
+    const source = sentenceCandidates[i % Math.max(sentenceCandidates.length, 1)] ||
+      'The source material discusses important concepts and practical applications.';
+
+    const conciseSource = source.length > 180 ? `${source.slice(0, 177)}...` : source;
+
+    const distractorPool = sentenceCandidates
+      .filter((s) => s !== source)
+      .slice(0, 12)
+      .map((s) => (s.length > 90 ? `${s.slice(0, 87)}...` : s));
+
+    while (distractorPool.length < 3) {
+      distractorPool.push(`Alternative interpretation ${distractorPool.length + 1} that is less supported by the text.`);
+    }
+
+    const optionsList = [
+      conciseSource,
+      distractorPool[0],
+      distractorPool[1],
+      distractorPool[2]
+    ];
+
+    questions.push({
+      question: `Which statement is best supported by the study material? (${i + 1})`,
+      options: optionsList,
+      correctAnswer: 0,
+      explanation: 'This option is taken directly from the provided content and is therefore the most strongly supported.'
+    });
+  }
+
+  return {
+    title: `Quiz on ${subject}`,
+    description: `A ${difficulty} difficulty quiz with ${targetCount} questions (generated using offline fallback mode).`,
+    questions,
+    difficulty,
+    subject
+  };
+}
+
 /**
  * Generate quiz questions from text content using Google Gemini AI
  * @param {string} content - The text content extracted from PDF
@@ -94,7 +151,13 @@ The correctAnswer should be the index (0, 1, 2, or 3) of the correct option.`;
 
   } catch (error) {
     console.error('Error generating quiz with Gemini:', error);
-    throw new Error(`Failed to generate quiz: ${error.message}`);
+
+    // Keep the feature usable when AI service is down or network is unavailable.
+    return buildFallbackQuizFromContent(content, {
+      numQuestions,
+      difficulty,
+      subject
+    });
   }
 }
 

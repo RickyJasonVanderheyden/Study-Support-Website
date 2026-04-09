@@ -375,7 +375,11 @@ const Module2Page = () => {
       setShowSuccessModal(true);
     } catch (error) {
       console.error('Generation error:', error);
-      toast.error(error.response?.data?.error || `Failed to generate ${type}`);
+      if (error.code === 'ERR_NETWORK') {
+        toast.error('Cannot connect to server. Ensure backend is running on http://localhost:5000');
+      } else {
+        toast.error(error.response?.data?.error || `Failed to generate ${type}`);
+      }
     } finally {
       setGenerating(false);
       setGenerationType(null);
