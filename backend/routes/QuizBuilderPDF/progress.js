@@ -4,59 +4,18 @@ const authMiddleware = require('../../middleware/authMiddleware');
 const Quiz = require('../../models/Quiz');
 const QuizAttempt = require('../../models/QuizAttempt');
 
-// Optional auth: if token is present and valid, attach req.user; otherwise continue as public/testing.
-const optionalAuth = async (req, _res, next) => {
-  const hasAuthHeader = !!req.header('Authorization');
-  if (!hasAuthHeader) {
-    return next();
-  }
-
-  try {
-    await new Promise((resolve, reject) => {
-      authMiddleware(req, {
-        status: () => ({
-          json: (payload) => reject(new Error(payload?.error || 'Unauthorized'))
-        })
-      }, resolve);
-    });
-  } catch (_e) {
-    // Keep endpoint usable in testing mode when token is invalid/missing.
-    req.user = null;
-  }
-
-  next();
-};
-
 /**
  * @route   GET /api/module2/progress
  * @desc    Get learning progress overview
- * @access  Public (for testing)
+ * @access  Private
  */
-router.get('/', optionalAuth, async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    let scope = req.user?.id ? 'user' : 'global-testing';
-
-    // Prefer strict user scope when authenticated.
-    let attempts = await QuizAttempt.find(req.user?.id ? { user: req.user.id } : {})
+    const attempts = await QuizAttempt.find({ user: req.user.id })
       .populate('quiz', 'title subject difficulty')
       .sort({ completedAt: -1 });
 
-    // Legacy fallback: old test attempts were saved with user=null.
-    if (req.user?.id && attempts.length === 0) {
-      attempts = await QuizAttempt.find({
-        $or: [{ user: req.user.id }, { user: null }]
-      })
-        .populate('quiz', 'title subject difficulty')
-        .sort({ completedAt: -1 });
-      scope = 'user-legacy-fallback';
-    }
-
-    let quizzes = await Quiz.find(scope === 'user' ? { user: req.user.id } : {});
-
-    if (scope === 'user' && quizzes.length === 0) {
-      quizzes = await Quiz.find({ $or: [{ user: req.user.id }, { user: null }] });
-      scope = 'user-legacy-fallback';
-    }
+    const quizzes = await Quiz.find({ user: req.user.id });
 
     // Protect against dangling references (attempts whose quiz was deleted).
     const validAttempts = attempts.filter((a) => a.quiz);
@@ -140,7 +99,7 @@ router.get('/', optionalAuth, async (req, res) => {
         streak,
         subjectPerformance,
         recentActivity,
-        scope
+        scope: 'user'
       }
     });
   } catch (error) {
@@ -152,15 +111,16 @@ router.get('/', optionalAuth, async (req, res) => {
 /**
  * @route   GET /api/module2/progress/weekly
  * @desc    Get weekly progress data for charts
- * @access  Public (for testing)
+ * @access  Private
  */
-router.get('/weekly', async (req, res) => {
+router.get('/weekly', authMiddleware, async (req, res) => {
   try {
     // Get attempts from the last 7 days (no user filter for testing)
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     
     const attempts = await QuizAttempt.find({
+      user: req.user.id,
       completedAt: { $gte: weekAgo }
     }).sort({ completedAt: 1 });
 

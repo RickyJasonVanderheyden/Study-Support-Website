@@ -49,6 +49,9 @@ const upload = multer({
   }
 });
 
+// All Module 2 generation/library endpoints are user-scoped and require auth.
+router.use(authMiddleware);
+
 // Helper function to parse duration strings like "3 minutes 45 seconds" into seconds
 const parseDurationToSeconds = (duration) => {
   if (typeof duration === 'number') return duration;
@@ -114,7 +117,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const quiz = new Quiz({
       title: quizData.title,
       description: quizData.description,
-      user: req.user?.id || null, // Optional user for testing
+      user: req.user.id,
       sourceFileName: originalName,
       questions: quizData.questions,
       difficulty: quizData.difficulty,
@@ -160,7 +163,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
  * @desc    Generate a quiz from plain text input
  * @access  Private
  */
-router.post('/text', authMiddleware, async (req, res) => {
+router.post('/text', async (req, res) => {
   try {
     const { 
       content, 
@@ -224,7 +227,7 @@ router.post('/text', authMiddleware, async (req, res) => {
  * @desc    Generate a summary of uploaded content
  * @access  Private
  */
-router.post('/summarize', authMiddleware, upload.single('file'), async (req, res) => {
+router.post('/summarize', upload.single('file'), async (req, res) => {
   let filePath = null;
   
   try {
@@ -304,7 +307,7 @@ router.post('/flashcards', upload.single('file'), async (req, res) => {
     const flashcardSet = new FlashcardSet({
       title: flashcardData.title,
       description: flashcardData.description,
-      user: req.user?.id || null,
+      user: req.user.id,
       sourceFileName: originalName,
       cards: flashcardData.cards,
       difficulty: flashcardData.difficulty,
@@ -382,7 +385,7 @@ router.post('/mindmap', upload.single('file'), async (req, res) => {
     const mindMap = new MindMap({
       title: mindMapData.title,
       description: mindMapData.description,
-      user: req.user?.id || null,
+      user: req.user.id,
       sourceFileName: originalName,
       centralTopic: mindMapData.centralTopic,
       nodes: mindMapData.nodes,
@@ -461,7 +464,7 @@ router.post('/audio', upload.single('file'), async (req, res) => {
     // Create and save the audio notes
     const audioNotes = new AudioNotes({
       title: audioData.title,
-      user: req.user?.id || null,
+      user: req.user.id,
       sourceFileName: originalName,
       summary: audioData.summary,
       keyPoints: audioData.keyPoints,
@@ -511,7 +514,7 @@ router.post('/audio', upload.single('file'), async (req, res) => {
  */
 router.get('/flashcards', async (req, res) => {
   try {
-    const flashcardSets = await FlashcardSet.find()
+    const flashcardSets = await FlashcardSet.find({ user: req.user.id })
       .sort({ createdAt: -1 })
       .select('-cards.timesReviewed -cards.timesCorrect -cards.lastReviewed');
 
@@ -529,7 +532,7 @@ router.get('/flashcards', async (req, res) => {
  */
 router.get('/flashcards/:id', async (req, res) => {
   try {
-    const flashcardSet = await FlashcardSet.findById(req.params.id);
+    const flashcardSet = await FlashcardSet.findOne({ _id: req.params.id, user: req.user.id });
     
     if (!flashcardSet) {
       return res.status(404).json({ error: 'Flashcard set not found' });
@@ -549,7 +552,7 @@ router.get('/flashcards/:id', async (req, res) => {
  */
 router.get('/mindmaps', async (req, res) => {
   try {
-    const mindMaps = await MindMap.find()
+    const mindMaps = await MindMap.find({ user: req.user.id })
       .sort({ createdAt: -1 })
       .select('-nodes');
 
@@ -567,7 +570,7 @@ router.get('/mindmaps', async (req, res) => {
  */
 router.get('/mindmaps/:id', async (req, res) => {
   try {
-    const mindMap = await MindMap.findById(req.params.id);
+    const mindMap = await MindMap.findOne({ _id: req.params.id, user: req.user.id });
     
     if (!mindMap) {
       return res.status(404).json({ error: 'Mind map not found' });
@@ -587,7 +590,7 @@ router.get('/mindmaps/:id', async (req, res) => {
  */
 router.get('/audio', async (req, res) => {
   try {
-    const audioNotesList = await AudioNotes.find()
+    const audioNotesList = await AudioNotes.find({ user: req.user.id })
       .sort({ createdAt: -1 })
       .select('-script');
 
@@ -605,7 +608,7 @@ router.get('/audio', async (req, res) => {
  */
 router.get('/audio/:id', async (req, res) => {
   try {
-    const audioNotes = await AudioNotes.findById(req.params.id);
+    const audioNotes = await AudioNotes.findOne({ _id: req.params.id, user: req.user.id });
     
     if (!audioNotes) {
       return res.status(404).json({ error: 'Audio notes not found' });
@@ -657,13 +660,13 @@ Provide a clear, helpful answer based ONLY on the content above. If the answer c
  */
 router.delete('/flashcards/:id', async (req, res) => {
   try {
-    const flashcardSet = await FlashcardSet.findById(req.params.id);
+    const flashcardSet = await FlashcardSet.findOne({ _id: req.params.id, user: req.user.id });
 
     if (!flashcardSet) {
       return res.status(404).json({ error: 'Flashcard set not found' });
     }
 
-    await FlashcardSet.findByIdAndDelete(req.params.id);
+    await FlashcardSet.deleteOne({ _id: req.params.id, user: req.user.id });
 
     res.json({ message: 'Flashcard set deleted successfully' });
   } catch (error) {
@@ -679,13 +682,13 @@ router.delete('/flashcards/:id', async (req, res) => {
  */
 router.delete('/mindmaps/:id', async (req, res) => {
   try {
-    const mindMap = await MindMap.findById(req.params.id);
+    const mindMap = await MindMap.findOne({ _id: req.params.id, user: req.user.id });
 
     if (!mindMap) {
       return res.status(404).json({ error: 'Mind map not found' });
     }
 
-    await MindMap.findByIdAndDelete(req.params.id);
+    await MindMap.deleteOne({ _id: req.params.id, user: req.user.id });
 
     res.json({ message: 'Mind map deleted successfully' });
   } catch (error) {
@@ -701,13 +704,13 @@ router.delete('/mindmaps/:id', async (req, res) => {
  */
 router.delete('/audio/:id', async (req, res) => {
   try {
-    const audioNotes = await AudioNotes.findById(req.params.id);
+    const audioNotes = await AudioNotes.findOne({ _id: req.params.id, user: req.user.id });
 
     if (!audioNotes) {
       return res.status(404).json({ error: 'Audio notes not found' });
     }
 
-    await AudioNotes.findByIdAndDelete(req.params.id);
+    await AudioNotes.deleteOne({ _id: req.params.id, user: req.user.id });
 
     res.json({ message: 'Audio notes deleted successfully' });
   } catch (error) {
