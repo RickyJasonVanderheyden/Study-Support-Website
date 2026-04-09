@@ -12,11 +12,19 @@ const Login = () => {
   const [roleTab, setRoleTab] = useState('student');
   const [loading, setLoading] = useState(false);
 
+  const isSliitEmail = (value) => /^it\d{8}@my\.sliit\.lk$/i.test(String(value || '').trim());
+
   const handleLogin = async (event) => {
     event.preventDefault();
     setLoading(true);
 
     try {
+      if (!isSliitEmail(email)) {
+        toast.error('Use your SLIIT email (itXXXXXXXX@my.sliit.lk).');
+        setLoading(false);
+        return;
+      }
+
       const { data } = await API.post('/auth/login', { email, password });
       
       const { user, token } = data;
@@ -164,7 +172,7 @@ const Login = () => {
                 className="w-full text-center text-xs text-slate-400 hover:text-slate-700 font-medium transition-colors"
                 onClick={() => navigate('/boss-admin-login')}
               >
-                Access Boss Admin Portal
+                Access Super Admin Portal
               </button>
             </div>
           </form>

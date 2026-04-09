@@ -1,25 +1,62 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const getEmailConfig = () => {
+  const host = String(process.env.EMAIL_HOST || '').trim();
+  const portRaw = String(process.env.EMAIL_PORT || '').trim();
+  const user = String(process.env.EMAIL_USER || '').trim();
+  const pass = String(process.env.EMAIL_PASS || '').trim();
+  const from = String(process.env.EMAIL_FROM || '').trim() || user;
+
+  const port = portRaw ? Number.parseInt(portRaw, 10) : NaN;
+  const secure = port === 465;
+
+  return { host, port, user, pass, from, secure };
+};
+
+const createTransporter = () => {
+  const { host, port, user, pass, secure } = getEmailConfig();
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure, // true for 465, false for other ports
+    auth: { user, pass },
+  });
+};
 
 const sendEmail = async (to, subject, html) => {
   try {
     // Check if email is configured
-    if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your-actual-gmail@gmail.com') {
-      console.warn('⚠️ Email not configured: Please set EMAIL_USER and EMAIL_PASS in .env file');
-      return { success: false, error: 'Email not configured' };
+    const cfg = getEmailConfig();
+    const missing = [];
+    if (!cfg.host) missing.push('EMAIL_HOST');
+    if (!Number.isFinite(cfg.port)) missing.push('EMAIL_PORT');
+    if (!cfg.user || cfg.user === 'your-actual-gmail@gmail.com' || cfg.user === 'your_email@gmail.com') missing.push('EMAIL_USER');
+    if (!cfg.pass || cfg.pass === 'your_16_char_app_password') missing.push('EMAIL_PASS');
+    
+    let transporter;
+    let fromAddress = cfg.from;
+
+    if (missing.length) {
+      console.warn(`⚠️ Real email not configured: Missing/invalid ${missing.join(', ')}`);
+      console.log(`🧪 Falling back to Ethereal Test Email for demonstration purposes!`);
+      
+      const testAccount = await nodemailer.createTestAccount();
+      transporter = nodemailer.createTransport({
+        host: testAccount.smtp.host,
+        port: testAccount.smtp.port,
+        secure: testAccount.smtp.secure,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass,
+        },
+      });
+      fromAddress = testAccount.user;
+    } else {
+      transporter = createTransporter();
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: fromAddress,
       to,
       subject,
       html,
@@ -28,6 +65,14 @@ const sendEmail = async (to, subject, html) => {
     console.log(`📧 Attempting to send email to ${to}...`);
     const info = await transporter.sendMail(mailOptions);
     console.log('✅ Email sent successfully:', info.messageId);
+    
+    if (missing.length) {
+      console.log(`\n======================================================`);
+      console.log(`👀 VIVA DEMONSTRATION: PREVIEW EMAIL HERE`);
+      console.log(`🔗 ${nodemailer.getTestMessageUrl(info)}`);
+      console.log(`======================================================\n`);
+    }
+
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('❌ Email sending failed:', error.message);

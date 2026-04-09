@@ -6,6 +6,8 @@ import API from '../services/api';
 const PendingApproval = () => {
   const navigate = useNavigate();
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [lastCheckedAt, setLastCheckedAt] = useState(null);
+  const [statusNote, setStatusNote] = useState('');
 
   useEffect(() => {
     checkStatus();
@@ -13,26 +15,39 @@ const PendingApproval = () => {
 
   const checkStatus = async () => {
     setCheckingStatus(true);
+    setStatusNote('');
+    const toastId = toast.loading('Checking your request status...');
     try {
       const { data } = await API.get('/admin/check-status');
+      setLastCheckedAt(new Date());
 
       if (data.canLogin) {
         if (data.role === 'session_lead') {
-          toast.success('Your Session Lead request has been approved! Welcome aboard!');
+          toast.success('Approved! Your Session Lead access is now active.', { id: toastId });
           navigate('/module3');
         } else if (data.role === 'super_admin') {
+          toast.success('Approved.', { id: toastId });
           navigate('/super-admin-dashboard');
         } else {
+          toast.success('Approved.', { id: toastId });
           navigate('/module3');
         }
       } else if (data.roleRequest === 'rejected') {
-        toast.error('Your Session Lead request was rejected. Contact admin for more information.');
+        toast.error('Rejected. Contact admin for more information.', { id: toastId });
         navigate('/login');
+      } else {
+        setStatusNote('Still pending. Please check again later.');
+        toast.success('Still pending. No changes yet.', { id: toastId });
       }
       // If still pending, stay on this page
     } catch (error) {
       console.error('Failed to check status:', error);
-      // Stay on page if check fails
+      toast.error(
+        error.response?.data?.error ||
+          'Could not check status. Make sure the backend is running, then try again.',
+        { id: toastId }
+      );
+      setStatusNote('Unable to check right now. Please try again in a moment.');
     } finally {
       setCheckingStatus(false);
     }
@@ -92,6 +107,17 @@ const PendingApproval = () => {
                 <p>• You will receive an email notification once a decision is made</p>
                 <p>• Please check your email regularly for updates</p>
               </div>
+
+              {(statusNote || lastCheckedAt) && (
+                <div className="pt-3 border-t border-amber-200/60 text-sm text-amber-900">
+                  {statusNote && <p className="font-semibold">{statusNote}</p>}
+                  {lastCheckedAt && (
+                    <p className="text-amber-800/80 mt-1">
+                      Last checked: {lastCheckedAt.toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
