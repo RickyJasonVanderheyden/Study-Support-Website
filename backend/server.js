@@ -6,7 +6,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ override: true });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,6 +53,7 @@ if (!MONGODB_URI || MONGODB_URI.includes('your_mongodb_connection_string')) {
   mongoose.connect(MONGODB_URI, mongooseOptions)
     .then(() => {
       console.log('✅ MongoDB connected successfully');
+      console.log(`🗄️ MongoDB database: ${mongoose.connection.db?.databaseName || 'unknown'}`);
     })
     .catch(err => {
       console.error('❌ MongoDB connection error:', err.message);
