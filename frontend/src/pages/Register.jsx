@@ -12,11 +12,40 @@ const Register = () => {
     email: '',
     password: '',
     registrationNumber: '',
-    groupNumber: '',
-    role: 'student',
+    countryCode: '+94',
+    mobileLocal: '',
+    mobileNumber: '',
+    adminToken: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  const COUNTRY_CODES = [
+    { value: '+94', label: 'Sri Lanka (+94)' },
+    { value: '+91', label: 'India (+91)' },
+    { value: '+1', label: 'USA/Canada (+1)' },
+    { value: '+44', label: 'UK (+44)' },
+    { value: '+61', label: 'Australia (+61)' },
+    { value: '+65', label: 'Singapore (+65)' },
+    { value: '+81', label: 'Japan (+81)' },
+  ];
+
+  const buildE164 = (countryCode, localDigits) => {
+    const cc = (countryCode || '').trim();
+    const local = (localDigits || '').replace(/\D/g, '');
+    if (!cc.startsWith('+')) return '';
+    return `${cc}${local}`;
+  };
+
+  const isSliitEmail = (value) => /^it\d{8}@my\.sliit\.lk$/i.test(String(value || '').trim());
+  const getItDigitsFromSliitEmail = (value) => {
+    const match = String(value || '').trim().match(/^it(\d{8})@my\.sliit\.lk$/i);
+    return match ? match[1] : null;
+  };
+  const getItDigitsFromRegNo = (value) => {
+    const match = String(value || '').trim().match(/^IT(\d{8})$/i);
+    return match ? match[1] : null;
+  };
 
   const validateField = (name, value) => {
     let errorMsg = '';
@@ -27,16 +56,16 @@ const Register = () => {
         else if (value && !/^[A-Za-z\s]{2,50}$/.test(value)) errorMsg = 'Name must be 2-50 characters and contain only letters.';
         break;
       case 'email':
-        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errorMsg = 'Please enter a valid email address.';
+        if (value && !isSliitEmail(value)) errorMsg = 'Use your SLIIT email (itXXXXXXXX@my.sliit.lk).';
         break;
       case 'password':
         if (value && value.length < 6) errorMsg = 'Password must be at least 6 characters.';
         break;
       case 'registrationNumber':
-        if (value && !/^[A-Za-z]{2}\d{8}$/.test(value)) errorMsg = 'Must be 2 letters followed by 8 digits (e.g., IT12345678).';
+        if (value && !/^IT\d{8}$/i.test(value)) errorMsg = 'Must be IT followed by 8 digits (e.g., IT12345678).';
         break;
-      case 'groupNumber':
-        if (value && value.length > 10) errorMsg = 'Group Number max length is 10 characters.';
+      case 'mobileNumber':
+        if (value && !/^\+\d{7,15}$/.test(value)) errorMsg = 'Must be a valid international number (e.g. +94712345678).';
         break;
       default:
         break;
@@ -46,8 +75,33 @@ const Register = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    validateField(name, value);
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+
+      if (name === 'countryCode' || name === 'mobileLocal') {
+        const mobileNumber = buildE164(
+          name === 'countryCode' ? value : next.countryCode,
+          name === 'mobileLocal' ? value : next.mobileLocal
+        );
+        next.mobileNumber = mobileNumber;
+        validateField('mobileNumber', mobileNumber);
+        return next;
+      }
+
+      validateField(name, value);
+      if (name === 'email' || name === 'registrationNumber') {
+        const emailDigits = getItDigitsFromSliitEmail(name === 'email' ? value : next.email);
+        const regDigits = getItDigitsFromRegNo(name === 'registrationNumber' ? value : next.registrationNumber);
+        if (emailDigits && regDigits && emailDigits !== regDigits) {
+          setErrors((prev) => ({
+            ...prev,
+            email: 'Email IT number must match your registration number.',
+            registrationNumber: 'Registration number must match the IT number in your email.',
+          }));
+        }
+      }
+      return next;
+    });
   };
 
   const handleRegister = async (event) => {
@@ -57,10 +111,17 @@ const Register = () => {
     let isValid = true;
     const newErrors = {};
     if (!/^[A-Za-z\s]{2,50}$/.test(formData.name) || /\d/.test(formData.name)) { newErrors.name = 'Name must be 2-50 characters and contain only letters.'; isValid = false; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { newErrors.email = 'Please enter a valid email address.'; isValid = false; }
+    if (!isSliitEmail(formData.email)) { newErrors.email = 'Use your SLIIT email (itXXXXXXXX@my.sliit.lk).'; isValid = false; }
     if (formData.password.length < 6) { newErrors.password = 'Password must be at least 6 characters.'; isValid = false; }
-    if (!/^[A-Za-z]{2}\d{8}$/.test(formData.registrationNumber)) { newErrors.registrationNumber = 'Must be 2 letters followed by 8 digits (e.g., IT12345678).'; isValid = false; }
-    if (formData.groupNumber && formData.groupNumber.length > 10) { newErrors.groupNumber = 'Max length is 10 characters.'; isValid = false; }
+    if (!/^IT\d{8}$/i.test(formData.registrationNumber)) { newErrors.registrationNumber = 'Must be IT followed by 8 digits (e.g., IT12345678).'; isValid = false; }
+    const emailDigits = getItDigitsFromSliitEmail(formData.email);
+    const regDigits = getItDigitsFromRegNo(formData.registrationNumber);
+    if (emailDigits && regDigits && emailDigits !== regDigits) {
+      newErrors.email = 'Email IT number must match your registration number.';
+      newErrors.registrationNumber = 'Registration number must match the IT number in your email.';
+      isValid = false;
+    }
+    if (!/^\+\d{7,15}$/.test(formData.mobileNumber)) { newErrors.mobileNumber = 'Must be a valid international number (e.g. +94712345678).'; isValid = false; }
     
     setErrors(newErrors);
     if (!isValid) return toast.error("Please fix the highlighted errors before submitting.");
@@ -68,16 +129,39 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const { data } = await API.post('/auth/register', formData);
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        registrationNumber: formData.registrationNumber,
+        mobileNumber: formData.mobileNumber,
+        adminToken: formData.adminToken,
+      };
+
+      const { data } = await API.post('/auth/register', payload);
       const { user, token } = data;
       
-      toast.success(`Registered successfully as ${user.role || 'student'}`);
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      navigate('/');
+      if (user.roleRequest === 'pending_session_lead') {
+        toast.success('Registered. Session Lead status is pending Super Admin review.', { duration: 5000 });
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        navigate('/pending-approval');
+        return;
+      } else {
+        toast.success(`Registered successfully as ${user.role || 'student'}`);
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        navigate('/module3');
+      }
     } catch (error) {
       console.error(error);
-      const networkError = error.message === 'Network Error' ? 'Backend server is not running or offline' : '';
+      const isUnreachable =
+        error.message === 'Network Error' ||
+        error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNREFUSED';
+      const networkError = isUnreachable
+        ? 'Cannot reach the API. In a separate terminal run: cd backend → npm start — keep it running (port 5000).'
+        : '';
       toast.error(networkError || error.response?.data?.error || error.message || 'Registration failed');
     } finally {
       setLoading(false);
@@ -167,29 +251,43 @@ const Register = () => {
             </div>
 
             <div>
-              <input
-                className={`rounded-xl border ${errors.groupNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-200 focus:border-[#276332] focus:ring-[#276332]'} bg-gray-50 text-slate-900 placeholder-gray-400 w-full py-3 px-4 transition-all`}
-                type="text"
-                name="groupNumber"
-                placeholder="Group Number (Optional)"
-                value={formData.groupNumber}
-                onChange={handleChange}
-              />
-              {errors.groupNumber && <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors.groupNumber}</p>}
+              <div className="flex gap-2">
+                <select
+                  className="rounded-xl border border-gray-200 focus:border-[#276332] focus:ring-[#276332] bg-gray-50 text-slate-900 w-44 py-3 px-3 transition-all"
+                  name="countryCode"
+                  value={formData.countryCode}
+                  onChange={handleChange}
+                  required
+                >
+                  {COUNTRY_CODES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className={`rounded-xl border ${errors.mobileNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-200 focus:border-[#276332] focus:ring-[#276332]'} bg-gray-50 text-slate-900 placeholder-gray-400 w-full py-3 px-4 transition-all`}
+                  type="tel"
+                  name="mobileLocal"
+                  placeholder="Phone number"
+                  value={formData.mobileLocal}
+                  onChange={handleChange}
+                  required
+                  inputMode="numeric"
+                />
+              </div>
+              {errors.mobileNumber && <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors.mobileNumber}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Select Role</label>
-              <select
-                className="rounded-xl border border-gray-200 bg-gray-50 text-slate-900 focus:border-[#276332] focus:ring-[#276332] w-full py-3 px-4 transition-all"
-                name="role"
-                value={formData.role}
+              <input
+                className="rounded-xl border border-gray-200 focus:border-[#276332] focus:ring-[#276332] bg-emerald-50/50 text-slate-900 placeholder-emerald-800/40 w-full py-3 px-4 transition-all"
+                type="password"
+                name="adminToken"
+                placeholder="Session Lead Secret Token (Optional)"
+                value={formData.adminToken}
                 onChange={handleChange}
-                required
-              >
-                <option value="student">Student</option>
-                <option value="admin">Admin</option>
-              </select>
+              />
             </div>
 
             <button type="submit" disabled={loading} className="w-full bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold py-3.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-4">
