@@ -5,15 +5,24 @@ const authToken = process.env.TWILIO_AUTH_TOKEN;
 const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER;
 
 let client;
-if (accountSid && authToken) {
+const isValidAccountSid = typeof accountSid === 'string' && accountSid.startsWith('AC');
+const isValidAuthToken = typeof authToken === 'string' && authToken.trim().length > 0;
+
+if (isValidAccountSid && isValidAuthToken) {
   client = twilio(accountSid, authToken);
+} else if (accountSid || authToken) {
+  console.warn(
+    '⚠️ WhatsApp not configured: TWILIO_ACCOUNT_SID must start with "AC" and TWILIO_AUTH_TOKEN must be set'
+  );
 }
 
 const sendWhatsAppMessage = async (to, message) => {
   try {
     // Check if Twilio is configured
-    if (!client || !accountSid || accountSid === 'your-twilio-account-sid') {
-      console.warn('⚠️ WhatsApp not configured: Please set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in .env file');
+    if (!client || !isValidAccountSid || !isValidAuthToken) {
+      console.warn(
+        '⚠️ WhatsApp not configured: TWILIO_ACCOUNT_SID must start with "AC" and TWILIO_AUTH_TOKEN must be set'
+      );
       return { success: false, error: 'WhatsApp not configured' };
     }
 

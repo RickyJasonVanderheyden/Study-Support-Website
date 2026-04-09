@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import Home from './pages/Home';
@@ -14,9 +14,49 @@ import Module3Page from './pages/Module3Page';
 import Module3SessionDetailsPage from './pages/Module3SessionDetailsPage';
 import Module4Page from './pages/Module4Page';
 
+const ROUTES_NO_SESSION_LEAD_GATE = new Set([
+  '/login',
+  '/register',
+  '/pending-approval',
+  '/boss-admin-login',
+]);
+
+function SessionLeadAccessGuard() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const path = location.pathname;
+    if (ROUTES_NO_SESSION_LEAD_GATE.has(path)) return;
+
+    let user = null;
+    try {
+      const raw = localStorage.getItem('user');
+      if (raw) user = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!user) return;
+
+    if (user.roleRequest === 'pending_session_lead' && user.role !== 'super_admin') {
+      navigate('/pending-approval', { replace: true });
+      return;
+    }
+
+    if (user.roleRequest === 'rejected' && user.role !== 'super_admin') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <SessionLeadAccessGuard />
       <div className="min-h-screen">
         <Routes>
           <Route path="/" element={<Home />} />
