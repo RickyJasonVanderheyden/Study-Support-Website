@@ -1,6 +1,138 @@
 const model = require('../config/gemini');
 const rateLimiter = require('../utils/geminiRateLimiter');
 
+function isTransientGeminiError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return (
+    message.includes('fetch failed') ||
+    message.includes('econnreset') ||
+    message.includes('enotfound') ||
+    message.includes('eai_again') ||
+    message.includes('etimedout') ||
+    message.includes('socket hang up')
+  );
+}
+
+async function generateContentWithRetry(prompt) {
+  const maxAttempts = Math.max(1, parseInt(process.env.GEMINI_RETRY_ATTEMPTS || '2', 10));
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await model.generateContent(prompt);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientGeminiError(error) || attempt === maxAttempts) {
+        throw error;
+      }
+
+      const backoffMs = Math.min(10000, 1500 * attempt);
+      console.warn(`⚠️ Gemini transient error. Retrying (${attempt}/${maxAttempts}) in ${Math.ceil(backoffMs / 1000)}s...`);
+      await rateLimiter.sleep(backoffMs);
+    }
+  }
+
+  throw lastError;
+}
+
+function splitSentences(content = '') {
+  return (content || '')
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 30);
+}
+
+function buildFallbackFlashcards(content, options = {}) {
+  const {
+    numCards = 15,
+    difficulty = 'medium',
+    subject = 'General'
+  } = options;
+
+  const sentences = splitSentences(content).slice(0, 30);
+  const cards = [];
+  const targetCount = Math.max(1, parseInt(numCards, 10) || 15);
+
+  for (let i = 0; i < targetCount; i += 1) {
+    const sentence = sentences[i % Math.max(sentences.length, 1)] ||
+      'This topic includes key concepts that should be reviewed carefully.';
+    const short = sentence.length > 160 ? `${sentence.slice(0, 157)}...` : sentence;
+
+    cards.push({
+      front: `Key concept ${i + 1}`,
+      back: short,
+      hint: 'Look at the core idea and any defining terms.',
+      difficulty: ['easy', 'medium', 'hard'].includes(difficulty) ? difficulty : 'medium'
+    });
+  }
+
+  return {
+    title: `${subject} Flashcards`,
+    description: `Fallback flashcards generated while AI service is rate-limited.`,
+    cards,
+    difficulty,
+    subject
+  };
+}
+
+function buildFallbackMindMap(content, options = {}) {
+  const { subject = 'General' } = options;
+  const sentences = splitSentences(content).slice(0, 12);
+
+  const nodes = [
+    {
+      id: '1',
+      label: 'Core Concepts',
+      parentId: null,
+      level: 0,
+      description: `Overview of ${subject}`
+    }
+  ];
+
+  for (let i = 0; i < Math.min(sentences.length, 6); i += 1) {
+    const text = sentences[i].length > 70 ? `${sentences[i].slice(0, 67)}...` : sentences[i];
+    nodes.push({
+      id: `1.${i + 1}`,
+      label: `Topic ${i + 1}`,
+      parentId: '1',
+      level: 1,
+      description: text
+    });
+  }
+
+  return {
+    title: `${subject} Mind Map`,
+    description: 'Fallback mind map generated while AI service is rate-limited.',
+    centralTopic: subject,
+    nodes,
+    subject
+  };
+}
+
+function buildFallbackAudioNotes(content, options = {}) {
+  const {
+    style = 'conversational',
+    subject = 'General'
+  } = options;
+
+  const sentences = splitSentences(content).slice(0, 10);
+  const keyPoints = sentences.slice(0, 5).map((s) => (s.length > 120 ? `${s.slice(0, 117)}...` : s));
+  const scriptBody = keyPoints.length
+    ? keyPoints.map((point, idx) => `${idx + 1}. ${point}`).join(' ... ')
+    : 'The uploaded material covers several important ideas. Review definitions, examples, and applications for better retention.';
+
+  return {
+    title: `${subject} Audio Notes`,
+    summary: 'Fallback summary generated while AI service is rate-limited.',
+    keyPoints,
+    script: `Here is your ${style} study recap. ... ${scriptBody} ... End of summary.`,
+    estimatedDuration: '3-5 minutes',
+    style,
+    subject
+  };
+}
+
 /**
  * Generate flashcards from text content using Google Gemini AI
  * @param {string} content - The text content extracted from PDF
@@ -54,7 +186,7 @@ RESPOND ONLY WITH A VALID JSON OBJECT in this exact format (no markdown, no code
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await generateContentWithRetry(prompt);
     const response = await result.response;
     let text = response.text();
     
@@ -89,8 +221,15 @@ RESPOND ONLY WITH A VALID JSON OBJECT in this exact format (no markdown, no code
     };
 
   } catch (error) {
-    console.error('Error generating flashcards with Gemini:', error);
-    throw new Error(`Failed to generate flashcards: ${error.message}`);
+    console.error('❌ Error generating flashcards with Gemini:', {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      fullError: error.toString()
+    });
+
+    // Don't use fallback - let the error propagate for proper error handling
+    throw error;
   }
 }
 
@@ -164,7 +303,7 @@ Use string IDs in hierarchical format (1, 1.1, 1.1.1, 2, 2.1, etc.)
 Level 0 = main branches, Level 1 = sub-topics, Level 2 = details`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await generateContentWithRetry(prompt);
     const response = await result.response;
     let text = response.text();
     
@@ -200,8 +339,15 @@ Level 0 = main branches, Level 1 = sub-topics, Level 2 = details`;
     };
 
   } catch (error) {
-    console.error('Error generating mind map with Gemini:', error);
-    throw new Error(`Failed to generate mind map: ${error.message}`);
+    console.error('❌ Error generating mind map with Gemini:', {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      fullError: error.toString()
+    });
+
+    // Don't use fallback - let the error propagate for proper error handling
+    throw error;
   }
 }
 
@@ -262,7 +408,7 @@ RESPOND ONLY WITH A VALID JSON OBJECT in this exact format (no markdown, no code
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await generateContentWithRetry(prompt);
     const response = await result.response;
     let text = response.text();
     
@@ -286,8 +432,15 @@ RESPOND ONLY WITH A VALID JSON OBJECT in this exact format (no markdown, no code
     };
 
   } catch (error) {
-    console.error('Error generating audio notes with Gemini:', error);
-    throw new Error(`Failed to generate audio notes: ${error.message}`);
+    console.error('❌ Error generating audio notes with Gemini:', {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      fullError: error.toString()
+    });
+
+    // Don't use fallback - let the error propagate for proper error handling
+    throw error;
   }
 }
 
