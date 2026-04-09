@@ -12,11 +12,30 @@ const Register = () => {
     email: '',
     password: '',
     registrationNumber: '',
+    countryCode: '+94',
+    mobileLocal: '',
     mobileNumber: '',
     adminToken: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  const COUNTRY_CODES = [
+    { value: '+94', label: 'Sri Lanka (+94)' },
+    { value: '+91', label: 'India (+91)' },
+    { value: '+1', label: 'USA/Canada (+1)' },
+    { value: '+44', label: 'UK (+44)' },
+    { value: '+61', label: 'Australia (+61)' },
+    { value: '+65', label: 'Singapore (+65)' },
+    { value: '+81', label: 'Japan (+81)' },
+  ];
+
+  const buildE164 = (countryCode, localDigits) => {
+    const cc = (countryCode || '').trim();
+    const local = (localDigits || '').replace(/\D/g, '');
+    if (!cc.startsWith('+')) return '';
+    return `${cc}${local}`;
+  };
 
   const validateField = (name, value) => {
     let errorMsg = '';
@@ -36,7 +55,7 @@ const Register = () => {
         if (value && !/^[A-Za-z]{2}\d{8}$/.test(value)) errorMsg = 'Must be 2 letters followed by 8 digits (e.g., IT12345678).';
         break;
       case 'mobileNumber':
-        if (value && !/^\+94\d{9}$/.test(value)) errorMsg = 'Must be a valid Sri Lankan number (+94XXXXXXXXX).';
+        if (value && !/^\+\d{7,15}$/.test(value)) errorMsg = 'Must be a valid international number (e.g. +94712345678).';
         break;
       default:
         break;
@@ -46,8 +65,22 @@ const Register = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    validateField(name, value);
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+
+      if (name === 'countryCode' || name === 'mobileLocal') {
+        const mobileNumber = buildE164(
+          name === 'countryCode' ? value : next.countryCode,
+          name === 'mobileLocal' ? value : next.mobileLocal
+        );
+        next.mobileNumber = mobileNumber;
+        validateField('mobileNumber', mobileNumber);
+        return next;
+      }
+
+      validateField(name, value);
+      return next;
+    });
   };
 
   const handleRegister = async (event) => {
@@ -60,7 +93,7 @@ const Register = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { newErrors.email = 'Please enter a valid email address.'; isValid = false; }
     if (formData.password.length < 6) { newErrors.password = 'Password must be at least 6 characters.'; isValid = false; }
     if (!/^[A-Za-z]{2}\d{8}$/.test(formData.registrationNumber)) { newErrors.registrationNumber = 'Must be 2 letters followed by 8 digits (e.g., IT12345678).'; isValid = false; }
-    if (!/^\+94\d{9}$/.test(formData.mobileNumber)) { newErrors.mobileNumber = 'Must be a valid Sri Lankan number (+94XXXXXXXXX).'; isValid = false; }
+    if (!/^\+\d{7,15}$/.test(formData.mobileNumber)) { newErrors.mobileNumber = 'Must be a valid international number (e.g. +94712345678).'; isValid = false; }
     
     setErrors(newErrors);
     if (!isValid) return toast.error("Please fix the highlighted errors before submitting.");
@@ -68,7 +101,16 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const { data } = await API.post('/auth/register', formData);
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        registrationNumber: formData.registrationNumber,
+        mobileNumber: formData.mobileNumber,
+        adminToken: formData.adminToken,
+      };
+
+      const { data } = await API.post('/auth/register', payload);
       const { user, token } = data;
       
       if (user.roleRequest === 'pending_session_lead') {
@@ -85,7 +127,13 @@ const Register = () => {
       }
     } catch (error) {
       console.error(error);
-      const networkError = error.message === 'Network Error' ? 'Backend server is not running or offline' : '';
+      const isUnreachable =
+        error.message === 'Network Error' ||
+        error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNREFUSED';
+      const networkError = isUnreachable
+        ? 'Cannot reach the API. In a separate terminal run: cd backend → npm start — keep it running (port 5000).'
+        : '';
       toast.error(networkError || error.response?.data?.error || error.message || 'Registration failed');
     } finally {
       setLoading(false);
@@ -175,15 +223,31 @@ const Register = () => {
             </div>
 
             <div>
-              <input
-                className={`rounded-xl border ${errors.mobileNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-200 focus:border-[#276332] focus:ring-[#276332]'} bg-gray-50 text-slate-900 placeholder-gray-400 w-full py-3 px-4 transition-all`}
-                type="text"
-                name="mobileNumber"
-                placeholder="Mobile Number (e.g. +94712345678)"
-                value={formData.mobileNumber}
-                onChange={handleChange}
-                required
-              />
+              <div className="flex gap-2">
+                <select
+                  className="rounded-xl border border-gray-200 focus:border-[#276332] focus:ring-[#276332] bg-gray-50 text-slate-900 w-44 py-3 px-3 transition-all"
+                  name="countryCode"
+                  value={formData.countryCode}
+                  onChange={handleChange}
+                  required
+                >
+                  {COUNTRY_CODES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className={`rounded-xl border ${errors.mobileNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-200 focus:border-[#276332] focus:ring-[#276332]'} bg-gray-50 text-slate-900 placeholder-gray-400 w-full py-3 px-4 transition-all`}
+                  type="tel"
+                  name="mobileLocal"
+                  placeholder="Phone number"
+                  value={formData.mobileLocal}
+                  onChange={handleChange}
+                  required
+                  inputMode="numeric"
+                />
+              </div>
               {errors.mobileNumber && <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors.mobileNumber}</p>}
             </div>
 

@@ -29,7 +29,13 @@ const BossAdminLogin = () => {
       navigate('/super-admin-dashboard');
     } catch (error) {
       console.error(error);
-      const networkError = error.message === 'Network Error' ? 'Backend server offline' : '';
+      const isUnreachable =
+        error.message === 'Network Error' ||
+        error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNREFUSED';
+      const networkError = isUnreachable
+        ? 'Cannot reach the API. In a separate terminal run: cd backend → npm start — keep it running (port 5000).'
+        : '';
       toast.error(networkError || error.response?.data?.error || error.message || 'Authentication failed');
     } finally {
       setLoading(false);

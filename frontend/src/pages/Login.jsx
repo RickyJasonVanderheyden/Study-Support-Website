@@ -20,24 +20,22 @@ const Login = () => {
       const { data } = await API.post('/auth/login', { email, password });
       
       const { user, token } = data;
-      
-      // Prevent students from logging in through the session_lead tab.
-      if (roleTab === 'session_lead' && user.role !== 'session_lead' && user.role !== 'super_admin') {
-        toast.error('Access denied. You do not have Session Lead privileges.');
-        setLoading(false);
-        return;
-      }
 
-      // Prevent pending session leads from logging in
-      if (user.roleRequest === 'pending_session_lead') {
+      if (user.roleRequest === 'pending_session_lead' && user.role !== 'super_admin') {
         toast.error('Your Session Lead request is pending approval. Please wait for admin approval.');
         setLoading(false);
         return;
       }
 
-      // Prevent rejected session leads from logging in
-      if (user.roleRequest === 'rejected') {
+      if (user.roleRequest === 'rejected' && user.role !== 'super_admin') {
         toast.error('Your Session Lead request was rejected. Contact admin for more information.');
+        setLoading(false);
+        return;
+      }
+
+      // Prevent students from logging in through the session_lead tab (after pending/rejected checks).
+      if (roleTab === 'session_lead' && user.role !== 'session_lead' && user.role !== 'super_admin') {
+        toast.error('Access denied. You do not have Session Lead privileges.');
         setLoading(false);
         return;
       }
@@ -54,8 +52,18 @@ const Login = () => {
       navigate('/module3');
     } catch (error) {
       console.error(error);
-      const networkError = error.message === 'Network Error' ? 'Backend server is not running or offline' : '';
-      toast.error(networkError || error.response?.data?.error || error.message || 'Invalid email or password');
+      const isUnreachable =
+        error.message === 'Network Error' ||
+        error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNREFUSED';
+      const networkError = isUnreachable
+        ? 'Cannot reach the API. In a separate terminal run: cd backend → npm start — keep it running (port 5000).'
+        : '';
+      if (error.response?.status === 403 && error.response?.data?.error) {
+        toast.error(error.response.data.error);
+      } else {
+        toast.error(networkError || error.response?.data?.error || error.message || 'Invalid email or password');
+      }
     } finally {
       setLoading(false);
     }

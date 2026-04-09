@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Card from '../components/common/Card'; 
 import Button from '../components/common/Button';
@@ -32,7 +32,7 @@ const sessionStatus = (s) => {
   return { label: 'Upcoming', cls: 'bg-cyan-500/20 text-cyan-300' };
 };
 
-const SessionCard = ({ session, onOpen }) => {
+const StudentSessionCard = ({ session, onOpen }) => {
   const status = sessionStatus(session);
   return (
     <Card
@@ -59,15 +59,6 @@ const SessionCard = ({ session, onOpen }) => {
         <span className="text-xs font-medium text-slate-500">{stars(session.averageRating)} ({session.ratingCount})</span>
       </div>
       <p className="text-sm text-slate-600 line-clamp-3 leading-relaxed">{session.description}</p>
-      {session.tags && session.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-1">
-          {session.tags.map(tag => (
-            <span key={tag} className="text-[10px] uppercase font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-              #{tag}
-            </span>
-          ))}
-        </div>
-      )}
       <div className="text-sm space-y-1 text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100">
         <p><strong>Host:</strong> {session.hostName}</p>
         <p><strong>Date:</strong> {formatDateTime(session.dateTime)}</p>
@@ -82,6 +73,101 @@ const SessionCard = ({ session, onOpen }) => {
         )}
       </div>
       <p className="text-xs text-slate-400 font-medium pt-1">Click card to view full details</p>
+    </Card>
+  );
+};
+
+const SessionLeadCard = ({ session, onOpen, onEdit, onDelete }) => {
+  const status = sessionStatus(session);
+  const recent = session.recentRatings || [];
+  return (
+    <Card className="space-y-3 h-full bg-gradient-to-br from-amber-50/90 via-white to-[#EAF4ED] text-slate-800 border border-amber-200 border-l-[6px] border-l-[#D97706] shadow-md rounded-xl ring-1 ring-amber-100/60">
+      <div
+        role="button"
+        tabIndex={0}
+        className="space-y-3 cursor-pointer outline-none rounded-lg"
+        onClick={() => onOpen(session)}
+        onKeyDown={(e) => e.key === 'Enter' && onOpen(session)}
+      >
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <h3 className="text-lg font-bold text-[#276332] leading-snug">{session.title}</h3>
+            <span className="shrink-0 text-[10px] uppercase tracking-wide font-extrabold px-2 py-1 rounded-md bg-[#276332] text-white">
+              Your session
+            </span>
+          </div>
+          <span className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${status.cls}`}>{status.label}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 justify-between">
+          <span className="text-xs px-2 py-1 rounded-md bg-white/90 text-[#D97706] font-semibold border border-[#F59E0B]/30">
+            {session.moduleCode} {session.moduleName && `- ${session.moduleName}`}
+          </span>
+          <span className="text-xs font-semibold text-slate-600">
+            {stars(session.averageRating)} {session.ratingCount || 0} review{session.ratingCount !== 1 ? 's' : ''}
+          </span>
+        </div>
+        <p className="text-sm text-slate-700 line-clamp-2 leading-relaxed">{session.description}</p>
+        <div className="text-sm space-y-1 text-slate-700 bg-white/70 p-3 rounded-lg border border-amber-100/80">
+          <p>
+            <strong>Starts:</strong> {formatDateTime(session.dateTime)}
+          </p>
+          <p>
+            <strong>Seats:</strong> {session.bookingCount}/{session.maxParticipants} joined
+          </p>
+        </div>
+        {recent.length > 0 ? (
+          <div className="text-xs space-y-1.5 bg-white/90 rounded-lg p-3 border border-amber-100">
+            <p className="font-bold text-[#276332]">Recent ratings</p>
+            {recent.map((r, i) => (
+              <p key={`${r.studentEmail || i}-${i}`} className="text-slate-700">
+                <span className="font-semibold text-slate-900">{r.studentName}</span>
+                <span className="text-amber-600 ml-2 font-bold">{r.rating}/5</span>
+              </p>
+            ))}
+            {(session.ratingCount || 0) > recent.length && (
+              <p className="text-slate-500 italic pt-1">Open details to see all reviews and participants.</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500 bg-white/60 rounded-lg px-3 py-2 border border-dashed border-amber-200/80">
+            No ratings yet — share your session link to gather feedback.
+          </p>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2 pt-1 border-t border-amber-100/80">
+        <Button
+          size="sm"
+          className="bg-[#276332] hover:bg-[#1e4a25] text-white font-bold shadow-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(session);
+          }}
+        >
+          Edit
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="bg-white border-2 border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:text-white font-bold"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen(session);
+          }}
+        >
+          Roster & reviews
+        </Button>
+        <Button
+          size="sm"
+          variant="danger"
+          className="bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-600 hover:text-white font-bold ml-auto"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(session);
+          }}
+        >
+          Delete
+        </Button>
+      </div>
     </Card>
   );
 };
@@ -148,12 +234,16 @@ const SessionForm = ({ value, errors, onChangeField, onSubmit, loading, editing,
 
 const Module3Page = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [searchText, setSearchText] = useState('');
   const [moduleFilter, setModuleFilter] = useState('');
   const [hostFilter, setHostFilter] = useState('');
+  const [draftSearchText, setDraftSearchText] = useState('');
+  const [draftModuleFilter, setDraftModuleFilter] = useState('');
+  const [draftHostFilter, setDraftHostFilter] = useState('');
   const [sortBy, setSortBy] = useState('date_asc');
   const [joinedEmail, setJoinedEmail] = useState('');
   const [myJoinedIds, setMyJoinedIds] = useState([]);
@@ -163,6 +253,17 @@ const Module3Page = () => {
   const [sessionForm, setSessionForm] = useState(initialSessionForm);
   const [formErrors, setFormErrors] = useState({});
   const [userRole, setUserRole] = useState('student');
+  const [userEmail, setUserEmail] = useState('');
+
+  const isHostedByCurrentUser = useCallback(
+    (session) =>
+      Boolean(
+        userEmail &&
+          session.hostEmail?.toLowerCase() === userEmail.toLowerCase() &&
+          ['session_lead', 'super_admin'].includes(userRole)
+      ),
+    [userEmail, userRole]
+  );
 
   useEffect(() => {
     try {
@@ -172,6 +273,7 @@ const Module3Page = () => {
       const name = user?.name || '';
       const email = user?.email || '';
       setUserRole(user?.role || 'student');
+      setUserEmail((email || '').toLowerCase());
 
       if (name && email) {
         setSessionForm((prev) => ({
@@ -185,6 +287,22 @@ const Module3Page = () => {
       // Ignore malformed localStorage values.
     }
   }, []);
+
+  useEffect(() => {
+    // For students, automatically load "My Joined Sessions" using their login email.
+    if (userRole !== 'student') return;
+    if (!joinedEmail.trim()) return;
+    (async () => {
+      try {
+        const { data } = await API.get('/module3/bookings', {
+          params: { email: joinedEmail.trim().toLowerCase() },
+        });
+        setMyJoinedIds(data.map((item) => item.sessionId));
+      } catch (_error) {
+        // Ignore load failures; browsing still works.
+      }
+    })();
+  }, [joinedEmail, userRole]);
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -206,24 +324,18 @@ const Module3Page = () => {
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
   useEffect(() => { setPage(1); }, [searchText, moduleFilter, hostFilter, activeTab, sortBy, myJoinedIds]);
 
-  const handleLoadUserSessions = async () => {
-    if (!joinedEmail.trim()) {
-      return toast.error(['session_lead', 'super_admin'].includes(userRole)
-        ? 'Enter your email to load hosted sessions'
-        : 'Unable to load saved sessions. Please sign in again to refresh your account.'
-      );
-    }
-    if (['session_lead', 'super_admin'].includes(userRole)) {
-      setActiveTab('joined');
-    } else {
-      try {
-        const { data } = await API.get('/module3/bookings', { params: { email: joinedEmail.trim().toLowerCase() } });
-        setMyJoinedIds(data.map((item) => item.sessionId));
-        setActiveTab('joined');
-      } catch (error) {
-        toast.error(error.response?.data?.error || 'Failed to load joined sessions');
-      }
-    }
+  const applyFilters = () => {
+    // Apply drafts in one shot so browsing doesn't refetch on every keystroke.
+    const nextSearch = draftSearchText;
+    const nextModule = draftModuleFilter;
+    const nextHost = draftHostFilter;
+
+    if (!searchText.trim() && nextSearch.trim()) setSortBy('rating_desc');
+    if (!moduleFilter.trim() && nextModule.trim()) setSortBy('rating_desc');
+
+    setSearchText(nextSearch);
+    setModuleFilter(nextModule);
+    setHostFilter(nextHost);
   };
 
   const startEditSession = (session) => {
@@ -245,6 +357,19 @@ const Module3Page = () => {
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || sessions.length === 0) return;
+    const s = sessions.find((item) => String(item._id) === editId);
+    if (!s || !isHostedByCurrentUser(s)) {
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    startEditSession(s);
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run when opening /module3?edit= from detail page
+  }, [sessions, searchParams, setSearchParams, isHostedByCurrentUser]);
 
   const validateSessionField = (name, value) => {
     let errorMsg = '';
@@ -393,8 +518,12 @@ const Module3Page = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#EAF4ED] to-[#FDFCF9] p-6 md:p-8 text-slate-800 font-sans">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex justify-end mb-2">
-          <Button variant="danger" className="bg-red-500 hover:bg-red-600 text-white border-none font-bold shadow-md px-6 py-2 rounded-lg transition-colors" onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/login'); }}>
-            Logout
+          <Button
+            variant="secondary"
+            className="bg-white border-2 border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:text-white hover:border-[#556B2F] font-bold shadow-md px-6 py-2 rounded-lg transition-colors"
+            onClick={() => navigate(-1)}
+          >
+            Go Back
           </Button>
         </div>
         
@@ -448,32 +577,41 @@ const Module3Page = () => {
         <div>
           <h2 className="text-2xl font-bold text-[#276332] mb-5">Session Browser</h2>
           <Card className="space-y-4 mb-6 bg-white text-slate-800 border border-emerald-100 shadow-sm rounded-xl p-5">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <input className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]" placeholder="Search lecture title or topic" value={searchText} onChange={(e) => { if (!searchText && e.target.value) setSortBy('rating_desc'); setSearchText(e.target.value); }} />
-              <input className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]" placeholder="Module code" value={moduleFilter} onChange={(e) => { if (!moduleFilter && e.target.value) setSortBy('rating_desc'); setModuleFilter(e.target.value); }} />
-              <input className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]" placeholder="Search by host" value={hostFilter} onChange={(e) => setHostFilter(e.target.value)} />
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+              <input
+                className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]"
+                placeholder="Search lecture title or topic"
+                value={draftSearchText}
+                onChange={(e) => setDraftSearchText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+              />
+              <input
+                className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]"
+                placeholder="Module code"
+                value={draftModuleFilter}
+                onChange={(e) => setDraftModuleFilter(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+              />
+              <input
+                className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332]"
+                placeholder="Search by host"
+                value={draftHostFilter}
+                onChange={(e) => setDraftHostFilter(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+              />
               <select className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 focus:border-[#276332] focus:ring-[#276332]" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                 <option value="date_asc">Date: Soonest</option>
                 <option value="date_desc">Date: Latest</option>
                 <option value="rating_desc">Rating: High to Low</option>
                 <option value="seats_desc">Most Joined</option>
               </select>
-              <div className="flex gap-2 items-center">
-                {['session_lead', 'super_admin'].includes(userRole) ? (
-                  <>
-                    <input
-                      className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332] focus:ring-[#276332] flex-1 min-w-0"
-                      type="email"
-                      placeholder="Email for hosted tab"
-                      value={joinedEmail}
-                      onChange={(e) => setJoinedEmail(e.target.value)}
-                    />
-                    <Button size="sm" className="bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold shadow-sm whitespace-nowrap px-4" onClick={handleLoadUserSessions}>Load</Button>
-                  </>
-                ) : (
-                  <Button size="sm" className="bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold shadow-sm whitespace-nowrap px-4" onClick={handleLoadUserSessions}>Load My Sessions</Button>
-                )}
-              </div>
+              <Button
+                size="sm"
+                className="bg-[#F59E0B] hover:bg-[#D97706] text-white font-bold shadow-sm whitespace-nowrap px-6"
+                onClick={applyFilters}
+              >
+                Search
+              </Button>
             </div>
             <div className="flex gap-3 mt-4">
               <button className={`px-5 py-2 text-sm transition-all border-2 ${activeTab === 'all' ? 'bg-[#556B2F] border-[#556B2F] text-white font-bold shadow-sm rounded-lg' : 'bg-transparent border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:border-[#556B2F] hover:text-white font-bold rounded-lg'}`} onClick={() => setActiveTab('all')}>All Sessions</button>
@@ -490,12 +628,15 @@ const Module3Page = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {pagedSessions.map((session) => (
                   <div key={session._id} className="space-y-3">
-                    <SessionCard session={session} onOpen={openSessionDetail} />
-                    {['session_lead', 'super_admin'].includes(userRole) && (
-                      <div className="flex gap-3">
-                        <Button size="sm" variant="secondary" className="bg-white border-2 border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:text-white hover:border-[#556B2F] font-bold" onClick={() => startEditSession(session)}>Edit</Button>
-                        <Button size="sm" variant="danger" className="bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 font-bold" onClick={() => handleDeleteSession(session)}>Delete</Button>
-                      </div>
+                    {isHostedByCurrentUser(session) ? (
+                      <SessionLeadCard
+                        session={session}
+                        onOpen={openSessionDetail}
+                        onEdit={startEditSession}
+                        onDelete={handleDeleteSession}
+                      />
+                    ) : (
+                      <StudentSessionCard session={session} onOpen={openSessionDetail} />
                     )}
                   </div>
                 ))}

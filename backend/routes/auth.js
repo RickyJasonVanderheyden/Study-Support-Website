@@ -18,14 +18,25 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    const trimmedLeadToken = (adminToken || '').trim();
+    const sessionLeadSecret = (process.env.SESSION_LEAD_SECRET || '').trim();
+    const isSessionLeadApplication =
+      Boolean(trimmedLeadToken && sessionLeadSecret) && trimmedLeadToken === sessionLeadSecret;
+
     const user = await User.create({
       name,
       email,
       password,
       registrationNumber,
       mobileNumber,
-      roleRequest: adminToken && adminToken === process.env.SESSION_LEAD_SECRET ? 'pending_session_lead' : 'none',
-      role: (process.env.ADMIN_EMAILS || '').split(',').includes(email) ? 'super_admin' : 'student'
+      roleRequest: isSessionLeadApplication ? 'pending_session_lead' : 'none',
+      role: (process.env.ADMIN_EMAILS || '')
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+        .includes((email || '').trim().toLowerCase())
+        ? 'super_admin'
+        : 'student'
     });
 
     const token = jwt.sign(
@@ -64,6 +75,20 @@ router.post('/login', async (req, res) => {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    if (user.role !== 'super_admin' && user.roleRequest === 'pending_session_lead') {
+      return res.status(403).json({
+        error: 'Your Session Lead request is pending approval. Please wait for Super Admin review.',
+        code: 'SESSION_LEAD_PENDING'
+      });
+    }
+
+    if (user.role !== 'super_admin' && user.roleRequest === 'rejected') {
+      return res.status(403).json({
+        error: 'Your Session Lead request was rejected. Contact admin for more information.',
+        code: 'SESSION_LEAD_REJECTED'
+      });
     }
 
     const token = jwt.sign(

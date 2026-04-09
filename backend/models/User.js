@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
   mobileNumber: {
     type: String,
     required: [true, 'Please provide mobile number'],
-    match: [/^\+94\d{9}$/, 'Please provide a valid Sri Lankan mobile number (+94XXXXXXXXX)']
+    match: [/^\+\d{7,15}$/, 'Please provide a valid mobile number in international format (e.g., +94712345678)']
   },
   groupNumber: {
     type: String,

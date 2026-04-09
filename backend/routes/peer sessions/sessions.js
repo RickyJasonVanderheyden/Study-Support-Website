@@ -5,11 +5,12 @@ const PeerSession = require('../../models/PeerSession');
 const SessionBooking = require('../../models/SessionBooking');
 const SessionRating = require('../../models/SessionRating');
 
-const toCardPayload = (session, bookingCount, ratingSummary) => ({
+const toCardPayload = (session, bookingCount, ratingSummary, recentRatings = []) => ({
   ...session.toObject(),
   bookingCount,
   averageRating: Number((ratingSummary.averageRating || 0).toFixed(2)),
   ratingCount: ratingSummary.ratingCount || 0,
+  recentRatings,
 });
 
 router.get('/', async (req, res) => {
@@ -31,7 +32,7 @@ router.get('/', async (req, res) => {
     const sessions = await PeerSession.find(filters).sort({ dateTime: 1, createdAt: -1 });
     const sessionIds = sessions.map((item) => item._id);
 
-    const [bookingAggregation, ratingAggregation] = await Promise.all([
+    const [bookingAggregation, ratingAggregation, recentRatingsAgg] = await Promise.all([
       SessionBooking.aggregate([
         { $match: { sessionId: { $in: sessionIds }, status: 'joined' } },
         { $group: { _id: '$sessionId', bookingCount: { $sum: 1 } } },
@@ -46,16 +47,38 @@ router.get('/', async (req, res) => {
           },
         },
       ]),
+      sessionIds.length
+        ? SessionRating.aggregate([
+            { $match: { sessionId: { $in: sessionIds } } },
+            { $sort: { createdAt: -1 } },
+            {
+              $group: {
+                _id: '$sessionId',
+                items: {
+                  $push: {
+                    studentName: '$studentName',
+                    studentEmail: '$studentEmail',
+                    rating: '$rating',
+                    createdAt: '$createdAt',
+                  },
+                },
+              },
+            },
+            { $project: { _id: 1, recentRatings: { $slice: ['$items', 3] } } },
+          ])
+        : Promise.resolve([]),
     ]);
 
     const bookingMap = new Map(bookingAggregation.map((row) => [String(row._id), row.bookingCount]));
     const ratingMap = new Map(ratingAggregation.map((row) => [String(row._id), row]));
+    const recentMap = new Map(recentRatingsAgg.map((row) => [String(row._id), row.recentRatings || []]));
 
     const payload = sessions.map((session) =>
       toCardPayload(
         session,
         bookingMap.get(String(session._id)) || 0,
-        ratingMap.get(String(session._id)) || {}
+        ratingMap.get(String(session._id)) || {},
+        recentMap.get(String(session._id)) || []
       )
     );
 
