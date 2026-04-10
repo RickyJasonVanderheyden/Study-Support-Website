@@ -13,9 +13,9 @@ let KNOWLEDGE_BASE = '';
 try {
   const mdPath = path.join(__dirname, '..', 'knowledge', 'platform_rules.md');
   KNOWLEDGE_BASE = fs.readFileSync(mdPath, 'utf-8');
-  console.log(`✅ Knowledge base loaded (${KNOWLEDGE_BASE.length} chars)`);
+  console.log(` Knowledge base loaded (${KNOWLEDGE_BASE.length} chars)`);
 } catch (err) {
-  console.warn('⚠️ Could not load knowledge base file:', err.message);
+  console.warn(' Could not load knowledge base file:', err.message);
   KNOWLEDGE_BASE = 'You are a SLIIT Member Finder assistant chatbot.';
 }
 
@@ -65,7 +65,7 @@ DETECTED INTENT: ${context.intent}
 LIVE DATABASE CONTEXT (from MongoDB — this is real, accurate data):
 ${JSON.stringify(context.data, null, 2)}
 ---
-Use ONLY the data above to answer. Do NOT fabricate any information.`;
+CRITICAL INSTRUCTION: Use ONLY the provided JSON context to answer. If a group or member is not in the data, say "I don't have record of that." Do NOT invent any names.`;
 
     // Build messages array with conversation history
     const messages = [{ role: 'system', content: systemPrompt }];
@@ -169,8 +169,14 @@ const generateFallbackResponse = (userMessage, context) => {
       const list = data.groups.map(g =>
         `• ${g.name} (${g.moduleCode}) — ${g.activeMembers}/${g.maxMembers} members (${g.spotsLeft} left) | Leader: ${g.leader}`
       ).join('\n');
-      const warning = data.userAlreadyInModule ? `\n\n⚠️ You're already in "${data.userAlreadyInModule}" for ${data.moduleCode}.` : '';
+      const warning = data.userAlreadyInModule ? `\n\n You're already in "${data.userAlreadyInModule}" for ${data.moduleCode}.` : '';
       return `Available groups${data.moduleCode ? ` for ${data.moduleCode}` : ''}:\n\n${list}${warning}`;
+    }
+
+    case 'class_browse': {
+      if (!data.members || data.members.length === 0) return `I couldn't find any other students in your class/sub-group (${data.placement || 'Current'}).`;
+      const list = data.members.map(m => `• ${m.name} (${m.registrationNumber || 'N/A'})${m.placement ? ` - ${m.placement}` : ''} ${m.groupStatus}`).join('\n');
+      return `Here are some students in ${data.placement || 'your class'}:\n\n${list}\n\n💡 You can chat with me to find someone specific (e.g., "Find someone who knows React").`;
     }
 
     case 'member_search': {
@@ -191,9 +197,14 @@ const generateFallbackResponse = (userMessage, context) => {
 
     case 'peer_check': {
       if (!data.peerInfo) return `I couldn't find "${data.searchedName}" in your sub-group.`;
-      if (data.peerInfo.groups.length === 0) return `${data.peerInfo.name} is not in any groups — available! 🟢`;
-      const list = data.peerInfo.groups.map(g => `• ${g.groupName} (${g.moduleCode}) — ${g.spotsLeft} spots left`).join('\n');
-      return `${data.peerInfo.name}'s groups:\n\n${list}`;
+      const p = data.peerInfo;
+      const skills = p.skills.length > 0 ? p.skills.join(', ') : 'No skills listed';
+      const bio = p.bio ? `\n📝 Bio: "${p.bio}"` : '';
+      const placement = p.placement ? `\n📍 Placement: ${p.placement}` : '';
+      const groups = p.groups.length > 0
+        ? `\n\n📋 Groups:\n${p.groups.map(g => `• ${g.groupName} (${g.moduleCode}) — ${g.spotsLeft} spots left`).join('\n')}`
+        : '\n\n🟢 Not in any groups — available!';
+      return `👤 ${p.name} (${p.registrationNumber || 'N/A'})${placement}${bio}\n\n🛠️ Skills: ${skills}${groups}`;
     }
 
     case 'rules':
@@ -224,18 +235,26 @@ const generateFallbackResponse = (userMessage, context) => {
       return `📊 Platform Overview:\n\n👥 Students: ${data.totalStudents}\n📋 Groups: ${data.totalGroups}\n✅ Spots filled: ${data.filledSpots}/${data.totalSpots}\n📨 Pending invites: ${data.pendingInvitations}\n\nModule breakdown:\n${mods}`;
     }
 
-    case 'admin_group_detail': {
-      if (!data.group) return `Group "${data.searchedName}" not found.`;
+    case 'group_detail': {
+      if (!data.group) return `❌ Group "${data.searchedName}" not found. Check the group name and try again.`;
       const g = data.group;
-      const members = g.members.map(m => `• ${m.name} (${m.regNo || 'N/A'}) — ${m.role} — Score: ${m.score}`).join('\n');
-      return `📊 ${g.name} (${g.moduleCode})\nStatus: ${g.status} | ${g.placement}\n\n👥 Members:\n${members}\n\nCreated: ${new Date(g.createdAt).toLocaleDateString()} by ${g.createdBy}`;
+      const leader = g.leader || 'Unknown';
+      if (g.restricted) {
+        return `📋 ${g.name} (${g.moduleCode})\nStatus: ${g.status} | ${g.placement}\n👑 Leader: ${leader}\n👥 Members: ${g.memberCount}/${g.maxMembers}\n\n🔒 Full member details are only visible for groups in your own sub-group.`;
+      }
+      const members = g.members && g.members.length > 0
+        ? g.members.map(m => `• ${m.name} — ${m.role === 'leader' ? '👑 Leader' : '👤 Member'}`).join('\n')
+        : 'No members yet';
+      return `📋 ${g.name} (${g.moduleCode})\nStatus: ${g.status} | ${g.placement}\n👑 Leader: ${leader}\n\n👥 Members (${g.memberCount}/${g.maxMembers}):\n${members}`;
     }
 
     case 'admin_student_lookup': {
       if (!data.peerInfo) return `Student "${data.searchedName}" not found.`;
       const p = data.peerInfo;
+      const skills = p.skills.length > 0 ? p.skills.join(', ') : 'No skills listed';
+      const bio = p.bio ? `\n📝 Bio: "${p.bio}"` : '';
       const groups = p.groups.length > 0 ? p.groups.map(g => `• ${g.groupName} (${g.moduleCode}) — ${g.role}`).join('\n') : 'No groups';
-      return `👤 ${p.name} (${p.registrationNumber || 'N/A'})\nPlacement: ${p.placement}\nSkills: ${p.skills.join(', ') || 'None'}\n\nGroups:\n${groups}\n\nRecent activity: ${p.recentActivity} actions`;
+      return `👤 ${p.name} (${p.registrationNumber || 'N/A'})\n📍 Placement: ${p.placement}${bio}\n\n🛠️ Skills: ${skills}\n\n📋 Groups:\n${groups}\n\n📊 Recent activity: ${p.recentActivity} actions`;
     }
 
     default:

@@ -75,8 +75,8 @@ const Layout = ({ children }) => {
                 {/* User Profile at bottom */}
                 {user && (
                     <div className="border-t border-slate-700/50 px-4 py-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        <Link to="/profile" className="flex items-center gap-3 hover:bg-slate-800 rounded-xl px-1 py-1 transition-colors group">
+                            <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 group-hover:bg-indigo-500 transition-colors">
                                 {user.name?.charAt(0).toUpperCase()}
                             </div>
                             {sidebarOpen && (
@@ -85,7 +85,7 @@ const Layout = ({ children }) => {
                                     <p className="text-xs text-slate-400 truncate">{user.registrationNumber || user.email}</p>
                                 </div>
                             )}
-                        </div>
+                        </Link>
                     </div>
                 )}
             </aside>
@@ -109,7 +109,7 @@ const Layout = ({ children }) => {
                         <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                             <Bell size={20} />
                         </button>
-                        <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                        <button onClick={() => navigate('/profile')} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="My Profile">
                             <Settings size={20} />
                         </button>
                         <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg font-medium transition-colors">

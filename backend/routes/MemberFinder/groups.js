@@ -3,19 +3,7 @@ const router = express.Router();
 const authMiddleware = require('../../middleware/authMiddleware');
 const Group = require('../../models/Group');
 const ActivityLog = require('../../models/ActivityLog');
-const { findExistingGroupForModule } = require('./helpers');
-
-// Helper: Log activity
-const logActivity = async (groupId, userId, action, details = '', targetUser = null, metadata = {}) => {
-  await ActivityLog.create({
-    group: groupId,
-    performedBy: userId,
-    action,
-    targetUser,
-    details,
-    metadata
-  });
-};
+const { findExistingGroupForModule, logActivity } = require('./helpers');
 
 // POST /api/module4/groups - Create a new group
 router.post('/', authMiddleware, async (req, res) => {
@@ -53,19 +41,28 @@ router.post('/', authMiddleware, async (req, res) => {
       description,
       moduleCode,
       academicYear,
-      maxMembers: 4, // Enforced limit of 4 members
+      maxMembers: 4, 
       tags: tags || [],
       createdBy: user._id,
       year: user.role === 'student' ? user.year : req.body.year,
       semester: user.role === 'student' ? user.semester : req.body.semester,
       mainGroup: user.role === 'student' ? user.mainGroup : req.body.mainGroup,
       subGroup: user.role === 'student' ? user.subGroup : req.body.subGroup,
-      members: [{
+      members: user.role === 'student' ? [{
         user: user._id,
         role: 'leader',
         status: 'active'
-      }]
+      }] : [] // Admins are facilitators, not members
     };
+
+    // Validate placement for admin-created groups
+    if (user.role !== 'student') {
+      if (!groupData.year || !groupData.semester || !groupData.mainGroup || !groupData.subGroup) {
+        return res.status(400).json({
+          error: 'Please provide Year, Semester, Main Group, and Sub Group for this group.'
+        });
+      }
+    }
 
     const group = await Group.create(groupData);
 
@@ -124,12 +121,12 @@ router.get('/search', authMiddleware, async (req, res) => {
 
     const filter = { status: 'active' };
 
-    // Default to user's own sub-group if they are a student
+    // Students are ALWAYS locked to their own sub-group (cannot override via query params)
     if (user.role === 'student' && user.year && user.semester && user.mainGroup && user.subGroup) {
-      filter.year = year || user.year;
-      filter.semester = semester || user.semester;
-      filter.mainGroup = mainGroup ? parseInt(mainGroup) : user.mainGroup;
-      filter.subGroup = subGroup ? parseInt(subGroup) : user.subGroup;
+      filter.year = user.year;
+      filter.semester = user.semester;
+      filter.mainGroup = user.mainGroup;
+      filter.subGroup = user.subGroup;
     } else {
       if (year) filter.year = year;
       if (semester) filter.semester = semester;
@@ -187,19 +184,37 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Only the group leader can update group info' });
     }
 
-    const { name, description, moduleCode, year, semester, mainGroup, subGroup, academicYear, maxMembers, tags, status } = req.body;
+    const { name, description, academicYear, maxMembers, tags, status } = req.body;
+
+    // Module code and placement are IMMUTABLE after creation
+    if (req.body.moduleCode && req.body.moduleCode.toUpperCase() !== group.moduleCode) {
+      return res.status(400).json({ error: 'Module code cannot be changed after group creation.' });
+    }
+    if (req.body.year || req.body.semester || req.body.mainGroup || req.body.subGroup) {
+      const placementChanged = 
+        (req.body.year && req.body.year !== group.year) ||
+        (req.body.semester && req.body.semester !== group.semester) ||
+        (req.body.mainGroup && parseInt(req.body.mainGroup) !== group.mainGroup) ||
+        (req.body.subGroup && parseInt(req.body.subGroup) !== group.subGroup);
+      if (placementChanged && req.user.role !== 'admin') {
+        return res.status(400).json({ error: 'Academic placement cannot be changed. Contact an admin if this is needed.' });
+      }
+    }
 
     if (name) group.name = name;
     if (description !== undefined) group.description = description;
-    if (moduleCode) group.moduleCode = moduleCode;
-    if (year) group.year = year;
-    if (semester) group.semester = semester;
-    if (mainGroup) group.mainGroup = mainGroup;
-    if (subGroup) group.subGroup = subGroup;
     if (academicYear) group.academicYear = academicYear;
     if (maxMembers) group.maxMembers = maxMembers;
     if (tags) group.tags = tags;
     if (status) group.status = status;
+
+    // Only admins can change placement (as an override)
+    if (req.user.role === 'admin') {
+      if (req.body.year) group.year = req.body.year;
+      if (req.body.semester) group.semester = req.body.semester;
+      if (req.body.mainGroup) group.mainGroup = req.body.mainGroup;
+      if (req.body.subGroup) group.subGroup = req.body.subGroup;
+    }
 
     await group.save();
 

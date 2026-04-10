@@ -4,19 +4,7 @@ const authMiddleware = require('../../middleware/authMiddleware');
 const Group = require('../../models/Group');
 const User = require('../../models/User');
 const ActivityLog = require('../../models/ActivityLog');
-const { findExistingGroupForModule, getUserGroupMap } = require('./helpers');
-
-// Helper: Log activity
-const logActivity = async (groupId, userId, action, details = '', targetUser = null, metadata = {}) => {
-  await ActivityLog.create({
-    group: groupId,
-    performedBy: userId,
-    action,
-    targetUser,
-    details,
-    metadata
-  });
-};
+const { findExistingGroupForModule, getUserGroupMap, logActivity } = require('./helpers');
 
 // Helper: Check if user is the group leader
 const isLeader = (group, userId) => {
@@ -169,13 +157,12 @@ router.get('/:groupId/search', authMiddleware, async (req, res) => {
       ]
     };
 
-    // RESTRICTION: For students, only search within the group's sub-group
-    if (!isAdmin) {
-      query.year = group.year;
-      query.semester = group.semester;
-      query.mainGroup = group.mainGroup;
-      query.subGroup = group.subGroup;
-    }
+    // MANDATORY RESTRICTION: Only search within the group's sub-group
+    // This ensures group integrity even when an admin is managing the group
+    query.year = group.year;
+    query.semester = group.semester;
+    query.mainGroup = group.mainGroup;
+    query.subGroup = group.subGroup;
 
     const users = await User.find(query)
       .select('name email registrationNumber year semester mainGroup subGroup skills bio role')
@@ -212,6 +199,14 @@ router.post('/:groupId/add', authMiddleware, async (req, res) => {
     // Check user exists
     const userToAdd = await User.findById(userId);
     if (!userToAdd) return res.status(404).json({ error: 'User not found' });
+
+    // MANDATORY PLACEMENT CHECK: User must match group placement
+    if (userToAdd.year !== group.year || userToAdd.semester !== group.semester || 
+        userToAdd.mainGroup !== group.mainGroup || userToAdd.subGroup !== group.subGroup) {
+      return res.status(400).json({ 
+        error: `Placement Mismatch: ${userToAdd.name} (${userToAdd.year}·${userToAdd.semester}·MG${String(userToAdd.mainGroup||'?').toString().padStart(2,'0')}·SG${userToAdd.subGroup||'?'}) cannot be added to this group (${group.year}·${group.semester}·MG${String(group.mainGroup||'?').toString().padStart(2,'0')}·SG${group.subGroup||'?'}).` 
+      });
+    }
 
     // Check not already a member
     if (isMember(group, userId)) {
@@ -265,15 +260,17 @@ router.put('/:groupId/update/:userId', authMiddleware, async (req, res) => {
     const changes = [];
 
     if (role && role !== member.role) {
-      changes.push(`role: ${member.role} → ${role}`);
-      member.role = role;
+      const oldRole = member.role;
+      changes.push(`role: ${oldRole} → ${role}`);
 
       await logActivity(
         group._id, req.user._id, 'member_role_changed',
-        `Member role changed to ${role}`,
+        `Member role changed from ${oldRole} to ${role}`,
         req.params.userId,
-        { oldRole: member.role, newRole: role }
+        { oldRole, newRole: role }
       );
+
+      member.role = role;
     }
 
     if (status && status !== member.status) {
@@ -381,8 +378,8 @@ router.put('/:groupId/transfer/:userId', authMiddleware, async (req, res) => {
   try {
     const group = await Group.findById(req.params.groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    if (!isLeader(group, req.user._id)) {
-      return res.status(403).json({ error: 'Only the current leader can transfer leadership' });
+    if (!isLeader(group, req.user._id) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only the current leader or admin can transfer leadership' });
     }
 
     const targetMember = group.members.find(m => m.user.toString() === req.params.userId);
@@ -421,9 +418,26 @@ router.put('/:groupId/transfer/:userId', authMiddleware, async (req, res) => {
 router.get('/profile/:userId', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId)
-      .select('name email registrationNumber semester skills bio role createdAt');
+      .select('name email registrationNumber year semester mainGroup subGroup skills bio role createdAt');
 
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Access check: must share a group, be in the same sub-group, or be admin/instructor
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'instructor';
+    if (!isAdmin && req.params.userId !== req.user._id.toString()) {
+      const currentUser = await User.findById(req.user._id);
+      const sameSubGroup = currentUser.year === user.year && currentUser.semester === user.semester &&
+        currentUser.mainGroup === user.mainGroup && currentUser.subGroup === user.subGroup;
+      if (!sameSubGroup) {
+        const sharedGroup = await Group.findOne({
+          'members.user': { $all: [req.user._id, req.params.userId] },
+          status: { $ne: 'archived' }
+        });
+        if (!sharedGroup) {
+          return res.status(403).json({ error: 'You can only view profiles of students in your sub-group or group.' });
+        }
+      }
+    }
 
     // Get groups this user belongs to
     const groups = await Group.find({

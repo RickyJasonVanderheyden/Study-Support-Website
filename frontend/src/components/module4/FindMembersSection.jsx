@@ -298,19 +298,34 @@ const FindMembersSection = ({ groups = [] }) => {
                                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                                 >
                                     <option value="">Choose a group...</option>
-                                    {groups.map(g => {
-                                        // Check if the user is already in a group for this module
-                                        const conflict = inviteModalUser.existingGroups?.find(eg => eg.moduleCode === g.moduleCode);
-                                        return (
-                                            <option
-                                                key={g._id}
-                                                value={g._id}
-                                                disabled={!!conflict}
-                                            >
-                                                {g.name} ({g.moduleCode}){conflict ? ' — ❌ Already in a group' : ''}
-                                            </option>
-                                        );
-                                    })}
+                                    {groups
+                                        .filter(g => 
+                                            g.year === inviteModalUser.year &&
+                                            g.semester === inviteModalUser.semester &&
+                                            g.mainGroup === inviteModalUser.mainGroup &&
+                                            g.subGroup === inviteModalUser.subGroup
+                                        )
+                                        .map(g => {
+                                            // Check if the user is already in a group for this module
+                                            const conflict = inviteModalUser.existingGroups?.find(eg => eg.moduleCode === g.moduleCode);
+                                            return (
+                                                <option
+                                                    key={g._id}
+                                                    value={g._id}
+                                                    disabled={!!conflict}
+                                                >
+                                                    {g.name} ({g.moduleCode}){conflict ? ' — ❌ Already in a group' : ''}
+                                                </option>
+                                            );
+                                        })}
+                                    {groups.filter(g => 
+                                        g.year === inviteModalUser.year &&
+                                        g.semester === inviteModalUser.semester &&
+                                        g.mainGroup === inviteModalUser.mainGroup &&
+                                        g.subGroup === inviteModalUser.subGroup
+                                    ).length === 0 && (
+                                        <option disabled>No groups found for this student's sub-group</option>
+                                    )}
                                 </select>
 
                                 {/* Inline conflict warning when a group is selected */}
@@ -343,11 +358,10 @@ const FindMembersSection = ({ groups = [] }) => {
                                 <button
                                     onClick={handleInvite}
                                     disabled={!selectedGroup || !!getMemberConflict(inviteModalUser) || sending}
-                                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${
-                                        !selectedGroup || getMemberConflict(inviteModalUser) || sending
+                                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${!selectedGroup || getMemberConflict(inviteModalUser) || sending
                                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                             : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                    }`}
+                                        }`}
                                 >
                                     <Send size={14} className={sending ? 'animate-spin' : ''} />
                                     {sending ? 'Sending...' : 'Send Invitation'}

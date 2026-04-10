@@ -16,9 +16,9 @@ const SettingsTab = ({ group, currentUser, onRefresh }) => {
     const [inviteMessage, setInviteMessage] = useState('');
     const [saving, setSaving] = useState(false);
 
-    const isLeader = group.members.some(
-        m => m.user._id === currentUser.id && m.role === 'leader'
-    );
+    const canAccessSettings = group.members.some(
+        m => (m.user._id === currentUser.id || m.user._id === currentUser._id) && m.role === 'leader'
+    ) || currentUser.role === 'admin' || currentUser.role === 'super_admin' || currentUser.role === 'instructor';
 
     const { register, handleSubmit, formState: { errors } } = useForm({
         defaultValues: {
@@ -104,10 +104,10 @@ const SettingsTab = ({ group, currentUser, onRefresh }) => {
         }
     };
 
-    if (!isLeader) {
+    if (!canAccessSettings) {
         return (
             <div className="text-center text-gray-400 py-12">
-                <p className="text-lg">Only the group leader can access settings.</p>
+                <p className="text-lg">Only the group leader or administrators can access settings.</p>
             </div>
         );
     }

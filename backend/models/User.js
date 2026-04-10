@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide an email'],
     unique: true,
     lowercase: true,
-    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,})+$/, 'Please provide a valid email']
   },
   password: {
     type: String,
@@ -22,19 +22,30 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: false,
     unique: true,
-    sparse: true
+    sparse: true,
+    match: [/^(IT\d{8}|ADMIN\d+|INS\d+)$/i, 'Student IT number must be exactly 10 characters (e.g. IT21208876). Admin/Instructor IDs: ADMINXXXX or INSXXXX']
   },
   isActivated: {
     type: Boolean,
     default: false
   },
+  mobileNumber: {
+    type: String,
+    required: false, // Make it optional to not break user's activation flow which might not have it initially
+    match: [/^\+\d{7,15}$/, 'Please provide a valid mobile number in international format (e.g., +94712345678)']
+  },
   groupNumber: {
     type: String,
     default: null
   },
+  roleRequest: {
+    type: String,
+    enum: ['none', 'pending_session_lead', 'rejected'],
+    default: 'none'
+  },
   role: {
     type: String,
-    enum: ['student', 'instructor', 'admin'],
+    enum: ['student', 'session_lead', 'admin', 'instructor', 'super_admin'],
     default: 'student'
   },
   year: {

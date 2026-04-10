@@ -1,26 +1,12 @@
 const dns = require('dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']);
-const origLookup = dns.lookup;
-dns.lookup = function(hostname, options, callback) {
-  if (typeof options === 'function') {
-    callback = options;
-    options = {};
-  }
-  dns.resolve4(hostname, (err, addresses) => {
-    if (addresses && addresses.length > 0) {
-      callback(null, addresses[Math.floor(Math.random() * addresses.length)], 4);
-    } else {
-      origLookup(hostname, options, callback);
-    }
-  });
-};
+dns.setDefaultResultOrder('ipv4first');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ override: true });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -67,6 +53,7 @@ if (!MONGODB_URI || MONGODB_URI.includes('your_mongodb_connection_string')) {
   mongoose.connect(MONGODB_URI, mongooseOptions)
     .then(() => {
       console.log('✅ MongoDB connected successfully');
+      console.log(`🗄️ MongoDB database: ${mongoose.connection.db?.databaseName || 'unknown'}`);
     })
     .catch(err => {
       console.error('❌ MongoDB connection error:', err.message);
@@ -83,6 +70,7 @@ if (!MONGODB_URI || MONGODB_URI.includes('your_mongodb_connection_string')) {
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/admin', require('./routes/admin'));
 
 // Module 1 routes (Member 1)
 app.use('/api/module1/assessment', require('./routes/StudentProgressandDashboard/assessment'));
@@ -142,4 +130,8 @@ server.on('listening', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${NODE_ENV}`);
   console.log(`🌐 Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
+
+  // Start session reminder service
+  const sessionReminderService = require('./utils/sessionReminderService');
+  sessionReminderService.start();
 });

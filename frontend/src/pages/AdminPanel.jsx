@@ -120,15 +120,41 @@ const AdminPanel = () => {
 
         // 1. Strict Email & IT Number Validation for Students
         if (formData.role === 'student') {
-            const studentEmailRegex = /^it\d{8,10}@my\.sliit\.lk$/i;
+            const studentEmailRegex = /^it\d{8}@my\.sliit\.lk$/i;
             if (!studentEmailRegex.test(formData.email.trim())) {
-                toast.error("Student email must match format: IT12345678@my.sliit.lk");
+                toast.error("Student email must be exactly: IT + 8 digits + @my.sliit.lk (e.g. IT21208876@my.sliit.lk)");
                 return;
             }
 
-            const itNumberRegex = /^it\d{8,10}$/i;
+            const itNumberRegex = /^IT\d{8}$/i;
             if (!itNumberRegex.test(formData.registrationNumber.trim())) {
-                toast.error("IT Number must match format: IT12345678");
+                toast.error("IT Number must be exactly 10 characters: IT + 8 digits (e.g. IT21208876)");
+                return;
+            }
+
+            // Ensure email prefix matches IT number
+            const emailPrefix = formData.email.trim().split('@')[0].toUpperCase();
+            const itNumber = formData.registrationNumber.trim().toUpperCase();
+            if (emailPrefix !== itNumber) {
+                toast.error(`Email prefix (${emailPrefix}) does not match IT Number (${itNumber}). They must be the same.`);
+                return;
+            }
+
+            // 1.1 Academic Placement is REQUIRED for students
+            if (!formData.year) {
+                toast.error("Please select a Year (Y1–Y4) for this student.");
+                return;
+            }
+            if (!formData.semester) {
+                toast.error("Please select a Semester (S1 or S2) for this student.");
+                return;
+            }
+            if (!formData.mainGroup) {
+                toast.error("Please select a Main Group (MG01–MG12) for this student.");
+                return;
+            }
+            if (!formData.subGroup) {
+                toast.error("Please select a Sub Group (SG1 or SG2) for this student.");
                 return;
             }
         }
@@ -225,9 +251,21 @@ const AdminPanel = () => {
                                         <input
                                             type="email"
                                             required
-                                            placeholder="email@my.sliit.lk"
+                                            placeholder={formData.role === 'student' ? "IT12345678@my.sliit.lk" : "email@example.com"}
                                             value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            onChange={(e) => {
+                                                const email = e.target.value;
+                                                const update = { ...formData, email };
+
+                                                // Auto-extract IT number from student email
+                                                if (formData.role === 'student') {
+                                                    const match = email.match(/^(it\d{8,10})@/i);
+                                                    if (match) {
+                                                        update.registrationNumber = match[1].toUpperCase();
+                                                    }
+                                                }
+                                                setFormData(update);
+                                            }}
                                             className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
                                     </div>
@@ -255,11 +293,17 @@ const AdminPanel = () => {
                                         <input
                                             type="text"
                                             required
-                                            placeholder={formData.role === 'student' ? "ITXXXXXXXXX" : "ID (Auto-Generated)"}
+                                            placeholder={formData.role === 'student' ? "Auto-filled from email" : "ID (Auto-Generated)"}
                                             value={formData.registrationNumber}
                                             onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            readOnly={formData.role === 'student'}
+                                            className={`w-full border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${
+                                                formData.role === 'student' ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-gray-50'
+                                            }`}
                                         />
+                                        {formData.role === 'student' && formData.registrationNumber && (
+                                            <span className="text-[10px] text-emerald-600 font-bold mt-1 block">✅ Extracted from email</span>
+                                        )}
                                     </div>
                                 </div>
 

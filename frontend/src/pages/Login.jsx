@@ -21,8 +21,20 @@ const Login = () => {
             
             const { user, token } = response.data;
             
+            if (user.roleRequest === 'pending_session_lead' && user.role !== 'super_admin') {
+                toast.error('Your Session Lead request is pending approval. Please wait for admin approval.');
+                setLoading(false);
+                return;
+            }
+
+            if (user.roleRequest === 'rejected' && user.role !== 'super_admin') {
+                toast.error('Your Session Lead request was rejected. Contact admin for more information.');
+                setLoading(false);
+                return;
+            }
+
             // Prevent students from logging in through the admin tab.
-            if (roleTab === 'admin' && user.role !== 'admin') {
+            if (roleTab === 'admin' && user.role !== 'admin' && user.role !== 'super_admin') {
                 toast.error('Access denied. You do not have admin privileges.');
                 setLoading(false);
                 return;
@@ -32,11 +44,13 @@ const Login = () => {
             localStorage.setItem('token', token);
             localStorage.setItem('user', JSON.stringify(user));
             
-            // Redirect based on role or just to dashboard
-            if (user.role === 'admin') {
-                navigate('/module4'); // Group management or admin panel
+            // Redirect based on role
+            if (user.role === 'super_admin') {
+                navigate('/super-admin-dashboard');
+            } else if (user.role === 'admin') {
+                navigate('/admin');
             } else {
-                navigate('/module3'); // Peer sessions is the current focus
+                navigate('/');
             }
         } catch (error) {
             console.error(error);
@@ -58,7 +72,7 @@ const Login = () => {
 
                 {/* Foreground Content */}
                 <div className="relative z-10 space-y-10 max-w-lg">
-                    <div className="space-y-4">
+                    <div className="space-y-4 text-left">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100/50 text-[#276332] rounded-full text-sm font-bold border border-emerald-200/50 shadow-sm backdrop-blur-sm">
                             <CheckCircle size={16} />
                             <span>Empowering SLIIT Students</span>
@@ -76,16 +90,16 @@ const Login = () => {
                             <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-emerald-100 flex items-center justify-center shrink-0">
                                 <Shield className="text-emerald-600" size={24} />
                             </div>
-                            <div>
+                            <div className="text-left">
                                 <h4 className="font-bold text-[#276332]">Verified Networking</h4>
                                 <p className="text-sm text-gray-500">Connect with genuine SLIIT students and instructors securely.</p>
                             </div>
                         </div>
-                        <div className="flex items-start gap-4">
+                        <div className="flex items-start gap-4 text-left">
                             <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-emerald-100 flex items-center justify-center shrink-0">
                                 <GraduationCap className="text-emerald-600" size={24} />
                             </div>
-                            <div>
+                            <div className="text-left">
                                 <h4 className="font-bold text-[#276332]">Smart Matching</h4>
                                 <p className="text-sm text-gray-500">Find perfect teammates based on skills and shared modules.</p>
                             </div>
@@ -131,7 +145,7 @@ const Login = () => {
                     </div>
 
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 text-left">
                             <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">Institute Email</label>
                             <div className="relative group">
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#276332] transition-colors" size={20} />
@@ -139,8 +153,8 @@ const Login = () => {
                                     {...register('email', { 
                                         required: 'Email is required',
                                         pattern: {
-                                            value: /^[A-Z0-9._%+-]+@my\.sliit\.lk$/i,
-                                            message: 'Please use your @my.sliit.lk email'
+                                            value: /^[A-Z0-9._%+-]+(@my\.sliit\.lk|@sliit\.lk)$/i,
+                                            message: 'Please use your SLIIT email'
                                         }
                                     })}
                                     className={`rounded-2xl border ${errors.email ? 'border-red-300 bg-red-50/30' : 'border-gray-100 bg-gray-50/50'} focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-full py-4 pl-12 pr-4 transition-all outline-none font-medium text-slate-800 placeholder-slate-400`}
@@ -150,7 +164,7 @@ const Login = () => {
                             {errors.email && <span className="text-[11px] text-red-500 font-bold ml-4">{errors.email.message}</span>}
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 text-left">
                             <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">Secure Password</label>
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#276332] transition-colors" size={20} />
@@ -194,6 +208,16 @@ const Login = () => {
                                 Register your account
                             </button>
                         </p>
+
+                        <div className="pt-4 mt-6 border-t border-gray-100">
+                            <button
+                                type="button"
+                                className="w-full text-center text-xs text-slate-400 hover:text-slate-700 font-medium transition-colors"
+                                onClick={() => navigate('/boss-admin-login')}
+                            >
+                                Access Super Admin Portal
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>

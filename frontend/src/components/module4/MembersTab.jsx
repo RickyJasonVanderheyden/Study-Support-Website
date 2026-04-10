@@ -20,8 +20,12 @@ const MembersTab = ({ group, currentUser, onRefresh }) => {
     const [editingMember, setEditingMember] = useState(null);
     const [contributionInput, setContributionInput] = useState('');
 
+    const canManageMembers = group.members.some(
+        m => (m.user._id === currentUser.id || m.user._id === currentUser._id) && m.role === 'leader'
+    ) || currentUser.role === 'admin' || currentUser.role === 'super_admin' || currentUser.role === 'instructor';
+
     const isLeader = group.members.some(
-        m => m.user._id === currentUser.id && m.role === 'leader'
+        m => (m.user._id === currentUser.id || m.user._id === currentUser._id) && m.role === 'leader'
     );
 
     const filteredMembers = statusFilter === 'all'
@@ -139,7 +143,7 @@ const MembersTab = ({ group, currentUser, onRefresh }) => {
                     </select>
                 </div>
                 <div className="flex gap-2">
-                    {isLeader && (
+                    {canManageMembers && (
                         <Button size="sm" onClick={() => setShowAddModal(true)}>
                             <UserPlus size={16} className="mr-1" /> Add Member
                         </Button>
@@ -200,20 +204,20 @@ const MembersTab = ({ group, currentUser, onRefresh }) => {
                                 ) : (
                                     <button
                                         onClick={() => {
-                                            if (isLeader) {
+                                            if (canManageMembers) {
                                                 setEditingMember(member.user._id);
                                                 setContributionInput(member.contributionScore.toString());
                                             }
                                         }}
-                                        className={`text-lg font-bold ${isLeader ? 'text-indigo-600 hover:underline cursor-pointer' : 'text-gray-700 cursor-default'}`}
+                                        className={`text-lg font-bold ${canManageMembers ? 'text-indigo-600 hover:underline cursor-pointer' : 'text-gray-700 cursor-default'}`}
                                     >
                                         {member.contributionScore}%
                                     </button>
                                 )}
                             </div>
 
-                            {/* Leader Actions */}
-                            {isLeader && member.user._id !== currentUser.id && (
+                    {/* Leader/Admin Actions */}
+                    {canManageMembers && member.user._id !== (currentUser.id || currentUser._id) && (
                                 <div className="flex items-center gap-1">
                                     {/* Status Toggle */}
                                     <select

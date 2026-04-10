@@ -5,23 +5,30 @@ const Invitation = require('../../models/Invitation');
 const Group = require('../../models/Group');
 const User = require('../../models/User');
 const ActivityLog = require('../../models/ActivityLog');
-const { findExistingGroupForModule } = require('./helpers');
+const { findExistingGroupForModule, logActivity } = require('./helpers');
 
-// Helper: Log activity
-const logActivity = async (groupId, userId, action, details = '', targetUser = null, metadata = {}) => {
-  await ActivityLog.create({
-    group: groupId,
-    performedBy: userId,
-    action,
-    targetUser,
-    details,
-    metadata
-  });
-};
+// Basic in-memory rate limiter for invitations (max 10 per minute per user)
+const inviteRateLimits = new Map();
 
 // POST /api/module4/invitations/send - Send invitation
 router.post('/send', authMiddleware, async (req, res) => {
   try {
+    const userIdStr = req.user._id.toString();
+    const now = Date.now();
+    const limitWindow = 60 * 1000; // 1 minute
+    const maxRequests = 10;
+
+    let userLimit = inviteRateLimits.get(userIdStr);
+    if (!userLimit || now - userLimit.firstRequest > limitWindow) {
+      userLimit = { count: 1, firstRequest: now };
+    } else {
+      userLimit.count += 1;
+      if (userLimit.count > maxRequests) {
+        return res.status(429).json({ error: 'You are sending too many invitations. Please wait a minute and try again.' });
+      }
+    }
+    inviteRateLimits.set(userIdStr, userLimit);
+
     const { groupId, userId, message } = req.body;
 
     const group = await Group.findById(groupId);
@@ -50,15 +57,15 @@ router.post('/send', authMiddleware, async (req, res) => {
 
     // RESTRICTION: A group leader (student) can only invite students from the SAME sub-group
     if (req.user.role !== 'admin' && req.user.role !== 'instructor') {
-      const isSamePlacement = 
+      const isSamePlacement =
         invitedUser.year === group.year &&
         invitedUser.semester === group.semester &&
         invitedUser.mainGroup === group.mainGroup &&
         invitedUser.subGroup === group.subGroup;
-      
+
       if (!isSamePlacement) {
-        return res.status(400).json({ 
-          error: `${invitedUser.name} is not in your sub-group (${group.year}·${group.semester}·MG${group.mainGroup}·SG${group.subGroup}). You can only invite students from your own class.` 
+        return res.status(400).json({
+          error: `${invitedUser.name} is not in your sub-group (${group.year}·${group.semester}·MG${group.mainGroup}·SG${group.subGroup}). You can only invite students from your own class.`
         });
       }
     }
@@ -138,6 +145,15 @@ router.get('/received', authMiddleware, async (req, res) => {
 // GET /api/module4/invitations/sent/:groupId - Get sent invitations for a group
 router.get('/sent/:groupId', authMiddleware, async (req, res) => {
   try {
+    // Access check: must be a member of the group, or admin/instructor
+    const group = await Group.findById(req.params.groupId);
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+
+    const isMember = group.members.some(m => m.user.toString() === req.user._id.toString());
+    if (!isMember && req.user.role !== 'admin' && req.user.role !== 'instructor') {
+      return res.status(403).json({ error: 'Access denied. You must be a member of this group.' });
+    }
+
     const invitations = await Invitation.find({
       group: req.params.groupId
     })
@@ -205,7 +221,10 @@ router.put('/:id/accept', authMiddleware, async (req, res) => {
     // Add the user to the group
     const alreadyMember = group.members.some(m => m.user.toString() === userToAdd.toString());
     if (!alreadyMember) {
-      group.members.push({ user: userToAdd, role: 'member', status: 'active' });
+      // If the group has no active members (e.g. created by admin), the first person to join becomes the leader
+      const activeMembers = group.members.filter(m => m.status !== 'inactive');
+      const role = activeMembers.length === 0 ? 'leader' : 'member';
+      group.members.push({ user: userToAdd, role: role, status: 'active' });
       await group.save();
     }
 

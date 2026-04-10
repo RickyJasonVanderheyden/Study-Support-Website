@@ -7,6 +7,17 @@ const roleMiddleware = require('../middleware/roleMiddleware');
 
 // 1. Admin Pre-register (Whitelisting)
 // Proteced: Only Admins can add students/instructors
+const isValidEmail = (value) => /^\S+@\S+\.\S+$/.test(String(value || '').trim());
+const isAdminEmail = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return false;
+  return (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(normalized);
+};
+
 router.post('/pre-register', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
   try {
     const { email, registrationNumber, role, name, password, year, semester, mainGroup, subGroup } = req.body;
@@ -62,7 +73,15 @@ router.post('/pre-register', authMiddleware, roleMiddleware(['admin']), async (r
 // 2. Student Claims Account / Activate
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, registrationNumber, year, semester, mainGroup, subGroup } = req.body;
+    const { name, email, password, registrationNumber, mobileNumber, year, semester, mainGroup, subGroup, adminToken } = req.body;
+
+    // validation (optional but good to have)
+    const registeringAsAdmin = isAdminEmail(email);
+    if (!registeringAsAdmin && email) {
+      if (!isValidEmail(email)) {
+        return res.status(400).json({ error: 'Please use a valid email address' });
+      }
+    }
 
     if (!registrationNumber) {
       return res.status(400).json({ error: 'ID Number is required.' });
@@ -75,6 +94,11 @@ router.post('/register', async (req, res) => {
       isActivated: false
     });
 
+    const trimmedLeadToken = (adminToken || '').trim();
+    const sessionLeadSecret = (process.env.SESSION_LEAD_SECRET || '').trim();
+    const isSessionLeadApplication =
+      Boolean(trimmedLeadToken && sessionLeadSecret) && trimmedLeadToken === sessionLeadSecret;
+
     if (!user) {
       // If not pre-registered, we create a new one directly
       const userExists = await User.findOne({
@@ -85,17 +109,25 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: 'This Email or ID Number is already registered.' });
       }
 
-      let role = 'student';
-      if (registrationNumber && (registrationNumber.startsWith('INS') || registrationNumber.includes('INS'))) role = 'instructor';
-      if (registrationNumber && (registrationNumber.startsWith('ADMIN') || registrationNumber.includes('ADMIN'))) role = 'admin';
+      let role = registeringAsAdmin ? 'super_admin' : 'student';
+      if (!registeringAsAdmin) {
+        if (registrationNumber && (registrationNumber.startsWith('INS') || registrationNumber.includes('INS'))) role = 'instructor';
+        if (registrationNumber && (registrationNumber.startsWith('ADMIN') || registrationNumber.includes('ADMIN'))) role = 'admin';
+      }
 
       const userData = {
-        name, email, password, registrationNumber, role,
+        name, 
+        email, 
+        password, 
+        registrationNumber, 
+        mobileNumber,
+        role,
+        roleRequest: isSessionLeadApplication ? 'pending_session_lead' : 'none',
         isActivated: true
       };
 
       // Add academic fields for students
-      if (role === 'student') {
+      if (role === 'student' || role === 'super_admin') {
         if (year) userData.year = year;
         if (semester) userData.semester = semester;
         if (mainGroup) userData.mainGroup = parseInt(mainGroup);
@@ -111,6 +143,12 @@ router.post('/register', async (req, res) => {
     // Activate existing pre-registered user
     user.name = name;
     user.password = password;
+    user.mobileNumber = mobileNumber;
+    user.roleRequest = isSessionLeadApplication ? 'pending_session_lead' : 'none';
+    if (year) user.year = year;
+    if (semester) user.semester = semester;
+    if (mainGroup) user.mainGroup = parseInt(mainGroup);
+    if (subGroup) user.subGroup = parseInt(subGroup);
     user.isActivated = true;
     await user.save();
 
@@ -128,7 +166,8 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         registrationNumber: user.registrationNumber,
-        role: user.role
+        role: user.role,
+        roleRequest: user.roleRequest
       }
     });
   } catch (error) {
@@ -151,6 +190,20 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    if (user.role !== 'super_admin' && user.roleRequest === 'pending_session_lead') {
+      return res.status(403).json({
+        error: 'Your Session Lead request is pending approval. Please wait for Super Admin review.',
+        code: 'SESSION_LEAD_PENDING'
+      });
+    }
+
+    if (user.role !== 'super_admin' && user.roleRequest === 'rejected') {
+      return res.status(403).json({
+        error: 'Your Session Lead request was rejected. Contact admin for more information.',
+        code: 'SESSION_LEAD_REJECTED'
+      });
+    }
+
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
@@ -165,7 +218,8 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         registrationNumber: user.registrationNumber,
-        role: user.role
+        role: user.role,
+        roleRequest: user.roleRequest
       }
     });
   } catch (error) {
@@ -176,6 +230,33 @@ router.post('/login', async (req, res) => {
 // 4. Get Current User info
 router.get('/me', authMiddleware, async (req, res) => {
   res.json({ success: true, user: req.user });
+});
+
+// 4.1 Update Own Profile (Self-service)
+router.put('/profile', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const { name, bio, skills, mobileNumber } = req.body;
+
+    if (name && name.trim()) user.name = name.trim();
+    if (bio !== undefined) user.bio = bio.substring(0, 300);
+    if (skills !== undefined) {
+      user.skills = Array.isArray(skills)
+        ? skills.map(s => s.trim()).filter(Boolean).slice(0, 20)
+        : [];
+    }
+    if (mobileNumber !== undefined) user.mobileNumber = mobileNumber || undefined;
+
+    await user.save();
+
+    // Return updated user (without password)
+    const updated = await User.findById(user._id);
+    res.json({ success: true, user: updated });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 5. Get All Users (Admin Only)

@@ -1,5 +1,19 @@
 const Group = require('../../models/Group');
+const ActivityLog = require('../../models/ActivityLog');
 
+/**
+ * Helper: Log activity
+ */
+const logActivity = async (groupId, userId, action, details = '', targetUser = null, metadata = {}) => {
+  await ActivityLog.create({
+    group: groupId,
+    performedBy: userId,
+    action,
+    targetUser,
+    details,
+    metadata
+  });
+};
 /**
  * Check if a user is already an active member of any group
  * with the given module code.
@@ -61,4 +75,4 @@ const getUserGroupMap = async (userIds) => {
     return userGroupMap;
 };
 
-module.exports = { findExistingGroupForModule, getUserGroupMap };
+module.exports = { findExistingGroupForModule, getUserGroupMap, logActivity };

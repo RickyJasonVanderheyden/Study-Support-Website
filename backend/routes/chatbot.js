@@ -86,10 +86,11 @@ const detectIntent = (message, userRole) => {
 
   // ---- MY STATUS ----
   if (
-    msg.includes('my group') || msg.includes('my team') ||
+    (msg.includes('my group') || msg.includes('my team') ||
     msg.includes('am i in') || msg.includes('my status') ||
     (msg.includes('what group') && msg.includes('i ')) ||
-    msg.includes('my invitation') || msg.includes('pending invitation')
+    msg.includes('my invitation') || msg.includes('pending invitation') ||
+    ((msg.includes('members') || msg.includes('leader')) && msg.includes('my group')))
   ) {
     return { intent: 'my_status', moduleCodes };
   }
@@ -117,11 +118,21 @@ const detectIntent = (message, userRole) => {
     if (msg.includes('all group') || msg.includes('list group') || msg.includes('show group') || msg.includes('how many group')) {
       return { intent: 'admin_all_groups', moduleCodes };
     }
-    if (msg.includes('detail') || msg.includes('info about') || msg.includes('tell me about')) {
-      // Try to extract a group name
-      const detailMatch = msg.match(/(?:detail|info about|tell me about)\s+(.+)/i);
-      return { intent: 'admin_group_detail', groupName: detailMatch ? detailMatch[1].trim() : '', moduleCodes };
-    }
+  }
+
+  // ---- GROUP DETAIL LOOKUP (Everyone — must be BEFORE group_recommendation) ----
+  if (msg.includes('detail') || msg.includes('info about') || msg.includes('tell me about') || 
+      msg.includes('members of') || msg.includes('who is in') || msg.includes('who are in') ||
+      msg.includes('leader of') || msg.includes('who is the leader')) {
+    const detailMatch = msg.match(/(?:detail|info about|tell me about|members of|who is in|who are in|leader of|who is the leader of|who is the leader)\s+(?:the\s+)?(.+?)(?:\s+group)?$/i);
+    return { intent: 'group_detail', groupName: detailMatch ? detailMatch[1].trim() : '', moduleCodes };
+  }
+
+  // ---- DIRECT GROUP NAME (e.g. "IT6060-Bash", "se9021-gama") ----
+  // If the message looks like a group name (contains a hyphen with alphanumeric parts), treat as group detail
+  const directGroupMatch = message.trim().match(/^([A-Za-z0-9]+-[A-Za-z0-9]+)$/i);
+  if (directGroupMatch) {
+    return { intent: 'group_detail', groupName: directGroupMatch[1].trim(), moduleCodes };
   }
 
   // ---- GROUP RECOMMENDATION ----
@@ -147,7 +158,13 @@ const detectIntent = (message, userRole) => {
     /is\s+(\w+)\s+(in|joined|part of|member of)/i,
     /does\s+(\w+)\s+have/i,
     /check\s+(\w+)/i,
-    /(\w+)'s\s+group/i
+    /(\w+)'s\s+group/i,
+    /(\w+)'s\s+skill/i,
+    /skill[s]?\s+(?:of|does|for|in)\s+(\w+)/i,
+    /what\s+(?:skill|tech|can|are)\s+(\w+)\s+(?:know|do|have|use|skills?)/i,
+    /what\s+are\s+the\s+skills?\s+(?:of|in|for)\s+(\w+)/i,
+    /what\s+does\s+(\w+)\s+know/i,
+    /tell\s+me\s+about\s+(\w+)/i
   ];
   // Admin can also look up any student
   if (userRole === 'admin' || userRole === 'instructor') {
@@ -161,6 +178,15 @@ const detectIntent = (message, userRole) => {
     if (peerMatch && peerMatch[1] && !excludeWords.includes(peerMatch[1].toLowerCase())) {
       return { intent: userRole === 'admin' ? 'admin_student_lookup' : 'peer_check', peerName: peerMatch[1], moduleCodes };
     }
+  }
+
+  // ---- CLASS BROWSE ----
+  if (
+    msg.includes('in my class') || msg.includes('my classmates') || 
+    msg.includes('who is available') || msg.includes('available students') ||
+    msg.includes('my sub-group') || msg.includes('my subgroup')
+  ) {
+    return { intent: 'class_browse', moduleCodes };
   }
 
   // ---- MEMBER SEARCH ----
@@ -193,8 +219,20 @@ const extractSkills = (message) => {
     'android', 'ios', 'mobile', 'web', 'backend', 'frontend', 'fullstack',
     'devops', 'testing', 'agile', 'scrum', '.net', 'wordpress'
   ];
-  const msg = message.toLowerCase();
-  return techSkills.filter(skill => msg.includes(skill));
+  
+  const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  
+  return techSkills.filter(skill => {
+    // For single letters or common short words, mandate strict word boundaries
+    // C++ and C# and .NET need special handling because of non-word characters
+    let regexStr;
+    if (skill === 'c++') regexStr = '(?:^|\\s)c\\+\\+(?:$|\\s|[,.!?;])';
+    else if (skill === 'c#') regexStr = '(?:^|\\s)c#(?:$|\\s|[,.!?;])';
+    else if (skill === '.net') regexStr = '(?:^|\\s)\\.net(?:$|\\s|[,.!?;])';
+    else regexStr = `\\b${escapeRegExp(skill)}\\b`;
+    
+    return new RegExp(regexStr, 'i').test(message);
+  });
 };
 
 // ==========================================
@@ -427,6 +465,34 @@ const gatherContext = async (intent, user) => {
       break;
     }
 
+    case 'class_browse': {
+      const memberFilter = {
+        _id: { $ne: user._id },
+        role: 'student',
+        isActivated: true
+      };
+      if (!isAdmin) {
+        memberFilter.year = user.year;
+        memberFilter.semester = user.semester;
+        memberFilter.mainGroup = user.mainGroup;
+        memberFilter.subGroup = user.subGroup;
+      }
+      const members = await User.find(memberFilter).select('name registrationNumber skills bio year semester mainGroup subGroup').limit(15);
+      const userIds = members.map(m => m._id);
+      const groupMap = await getUserGroupMap(userIds);
+      
+      context.data.placement = isAdmin ? 'All Students' : `${user.year}·${user.semester}·MG${String(user.mainGroup).padStart(2,'0')}·SG${user.subGroup}`;
+      context.data.members = members.map(m => ({
+        name: m.name, registrationNumber: m.registrationNumber,
+        skills: m.skills || [], bio: m.bio || '',
+        placement: isAdmin ? `${m.year}·${m.semester}·MG${String(m.mainGroup||1).padStart(2,'0')}·SG${m.subGroup||1}` : '',
+        groupStatus: groupMap[m._id.toString()]
+          ? `(In groups: ${groupMap[m._id.toString()].map(g => g.moduleCode).join(', ')})`
+          : '(No groups — available ✅)'
+      }));
+      break;
+    }
+
     case 'member_search': {
       const skillQuery = intent.skills && intent.skills.length > 0
         ? { skills: { $in: intent.skills.map(s => new RegExp(s, 'i')) } }
@@ -484,11 +550,13 @@ const gatherContext = async (intent, user) => {
       const peer = await User.findOne({
         name: { $regex: intent.peerName, $options: 'i' }, role: 'student',
         year: user.year, semester: user.semester, mainGroup: user.mainGroup, subGroup: user.subGroup
-      }).select('name registrationNumber skills');
+      }).select('name registrationNumber skills bio year semester mainGroup subGroup');
       if (peer) {
         const peerGroups = await Group.find({ 'members.user': peer._id, status: 'active' }).select('name moduleCode members maxMembers');
         context.data.peerInfo = {
-          name: peer.name, registrationNumber: peer.registrationNumber, skills: peer.skills || [],
+          name: peer.name, registrationNumber: peer.registrationNumber,
+          skills: peer.skills || [], bio: peer.bio || '',
+          placement: `${peer.year||'?'}·${peer.semester||'?'}·MG${String(peer.mainGroup||'?').toString().padStart(2,'0')}·SG${peer.subGroup||'?'}`,
           groups: peerGroups.map(g => {
             const ac = (g.members || []).filter(m => m.status !== 'inactive').length;
             return { groupName: g.name, moduleCode: g.moduleCode, memberCount: ac, maxMembers: g.maxMembers, spotsLeft: g.maxMembers - ac };
@@ -572,30 +640,50 @@ const gatherContext = async (intent, user) => {
       break;
     }
 
-    case 'admin_group_detail': {
+    case 'group_detail': {
       const groupName = intent.groupName;
-      const group = await Group.findOne({ name: { $regex: groupName, $options: 'i' } })
+      const moduleCode = intent.moduleCodes[0];
+      const query = { status: { $ne: 'archived' } };
+      
+      if (groupName) {
+        query.$or = [
+          { name: { $regex: groupName, $options: 'i' } },
+          { name: { $regex: groupName.replace(/-/g, ' '), $options: 'i' } }
+        ];
+      }
+      if (moduleCode && !groupName) {
+        query.moduleCode = moduleCode.toUpperCase();
+      }
+
+      const group = await Group.findOne(query)
         .populate('members.user', 'name registrationNumber skills')
         .populate('createdBy', 'name');
+
       if (group) {
-        const activities = await ActivityLog.find({ group: group._id })
-          .populate('performedBy', 'name').sort({ createdAt: -1 }).limit(10);
+        const isAdmin = user.role === 'admin' || user.role === 'instructor';
+        const canSeeDetails = isAdmin || (
+          group.year === user.year &&
+          group.semester === user.semester &&
+          group.mainGroup === user.mainGroup &&
+          group.subGroup === user.subGroup
+        );
+
+        const activeMembers = (group.members || []).filter(m => m.status !== 'inactive');
+        const leader = activeMembers.find(m => m.role === 'leader');
+
         context.data.group = {
           name: group.name, moduleCode: group.moduleCode, status: group.status,
           placement: `${group.year}·${group.semester}·MG${String(group.mainGroup||1).padStart(2,'0')}·SG${group.subGroup||1}`,
-          createdAt: group.createdAt, createdBy: group.createdBy?.name,
-          members: (group.members || []).map(m => ({
-            name: m.user?.name, regNo: m.user?.registrationNumber, role: m.role,
-            status: m.status, joinedAt: m.joinedAt, score: m.contributionScore, skills: m.user?.skills || []
-          })),
-          tags: group.tags, maxMembers: group.maxMembers
+          leader: leader?.user?.name || 'Unknown',
+          members: canSeeDetails ? activeMembers.map(m => ({
+            name: m.user?.name, role: m.role, status: m.status
+          })) : [],
+          memberCount: activeMembers.length,
+          maxMembers: group.maxMembers
         };
-        context.data.history = activities.map(a => ({
-          action: a.action, details: a.details, by: a.performedBy?.name, time: a.createdAt
-        }));
       } else {
         context.data.group = null;
-        context.data.searchedName = groupName;
+        context.data.searchedName = groupName || moduleCode;
       }
       break;
     }

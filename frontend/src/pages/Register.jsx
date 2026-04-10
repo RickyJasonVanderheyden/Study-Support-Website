@@ -2,26 +2,54 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Mail, Lock, User, Shield, GraduationCap, CheckCircle, ArrowRight, Briefcase } from 'lucide-react';
+import { Mail, Lock, User, Shield, GraduationCap, CheckCircle, ArrowRight, Briefcase, Phone } from 'lucide-react';
 import API from '../services/api';
 
 const Register = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
-    const { register, handleSubmit, formState: { errors } } = useForm();
+    const { register, handleSubmit, formState: { errors }, watch } = useForm({
+        defaultValues: {
+            countryCode: '+94'
+        }
+    });
+
+    const COUNTRY_CODES = [
+        { value: '+94', label: 'Sri Lanka (+94)' },
+        { value: '+91', label: 'India (+91)' },
+        { value: '+1', label: 'USA/Canada (+1)' },
+        { value: '+44', label: 'UK (+44)' },
+        { value: '+61', label: 'Australia (+61)' },
+        { value: '+65', label: 'Singapore (+65)' },
+        { value: '+81', label: 'Japan (+81)' },
+    ];
 
     const onSubmit = async (data) => {
         setLoading(true);
         try {
-            const response = await API.post('/auth/register', data);
+            // Construct mobileNumber
+            const mobileNumber = `${data.countryCode}${data.mobileLocal.replace(/\D/g, '')}`;
+            const payload = {
+                ...data,
+                mobileNumber
+            };
+            delete payload.countryCode;
+            delete payload.mobileLocal;
+
+            const response = await API.post('/auth/register', payload);
             
             const { user, token } = response.data;
-            toast.success(`Welcome to LearnLoop, ${user.name}!`);
+            
             localStorage.setItem('token', token);
             localStorage.setItem('user', JSON.stringify(user));
-            
-            // Redirect to appropriate landing page
-            navigate('/module3'); 
+
+            if (user.roleRequest === 'pending_session_lead') {
+                toast.success('Registered. Session Lead status is pending review.', { duration: 5000 });
+                navigate('/pending-approval');
+            } else {
+                toast.success(`Welcome to LearnLoop, ${user.name}!`);
+                navigate('/');
+            }
         } catch (error) {
             console.error(error);
             toast.error(error.response?.data?.error || 'Registration failed. Please check your details.');
@@ -38,7 +66,7 @@ const Register = () => {
                 <div className="absolute bottom-20 right-20 w-72 h-72 bg-[#F59E0B] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
 
                 <div className="relative z-10 space-y-10 max-w-lg">
-                    <div className="space-y-4">
+                    <div className="space-y-4 text-left">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100/50 text-[#276332] rounded-full text-sm font-bold border border-emerald-200/50 shadow-sm backdrop-blur-sm">
                             <SparkleIcon className="text-amber-500" size={16} />
                             <span>Join the SLIIT Community</span>
@@ -82,21 +110,24 @@ const Register = () => {
 
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
+                            <div className="space-y-1 text-left">
                                 <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">Full Name</label>
                                 <input
-                                    {...register('name', { required: 'Name is required' })}
+                                    {...register('name', { 
+                                        required: 'Name is required',
+                                        validate: value => !/\d/.test(value) || 'Name cannot contain numbers'
+                                    })}
                                     className="rounded-2xl border border-gray-100 bg-gray-50/50 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-full py-3.5 px-5 transition-all outline-none font-medium text-slate-800"
                                     placeholder="John Doe"
                                 />
                                 {errors.name && <span className="text-[10px] text-red-500 font-bold ml-4">{errors.name.message}</span>}
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-1 text-left">
                                 <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">IT Number</label>
                                 <input
                                     {...register('registrationNumber', { 
                                         required: 'IT Number is required',
-                                        pattern: { value: /^[A-Z]{2}\d{8}$/i, message: 'Format: IT12345678' }
+                                        pattern: { value: /^IT\d{8}$/i, message: 'Must be exactly IT + 8 digits (e.g. IT21208876)' }
                                     })}
                                     className="rounded-2xl border border-gray-100 bg-gray-50/50 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-full py-3.5 px-5 transition-all outline-none font-medium text-slate-800"
                                     placeholder="IT22000000"
@@ -105,17 +136,65 @@ const Register = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-1">
+                        <div className="space-y-1 text-left">
                             <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">SLIIT Email</label>
                             <input
                                 {...register('email', { 
                                     required: 'Email is required',
-                                    pattern: { value: /^\S+@\S+$/i, message: 'Invalid email format' }
+                                    pattern: { value: /^it\d{8}@my\.sliit\.lk$/i, message: 'Use your @my.sliit.lk email' },
+                                    validate: value => {
+                                        const emailDigits = value.match(/\d{8}/)?.[0];
+                                        const regNo = watch('registrationNumber');
+                                        const regDigits = regNo?.match(/\d{8}/)?.[0];
+                                        if (emailDigits && regDigits && emailDigits !== regDigits) {
+                                            return 'Email and IT number must match';
+                                        }
+                                        return true;
+                                    }
                                 })}
                                 className="rounded-2xl border border-gray-100 bg-gray-50/50 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-full py-3.5 px-5 transition-all outline-none font-medium text-slate-800"
-                                placeholder="name@my.sliit.lk"
+                                placeholder="it22000000@my.sliit.lk"
                             />
                             {errors.email && <span className="text-[10px] text-red-500 font-bold ml-4">{errors.email.message}</span>}
+                        </div>
+
+                        <div className="space-y-1 text-left">
+                            <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">Phone Number</label>
+                            <div className="flex gap-2">
+                                <select
+                                    {...register('countryCode', { required: true })}
+                                    className="rounded-2xl border border-gray-100 bg-gray-50/50 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-32 py-3.5 px-3 transition-all outline-none font-bold text-[#276332] text-xs"
+                                >
+                                    {COUNTRY_CODES.map((c) => (
+                                        <option key={c.value} value={c.value}>
+                                            {c.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <input
+                                    {...register('mobileLocal', { 
+                                        required: 'Phone number is required',
+                                        pattern: { value: /^\d{7,15}$/, message: 'Invalid phone number' }
+                                    })}
+                                    className="rounded-2xl border border-gray-100 bg-gray-50/50 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 flex-1 py-3.5 px-5 transition-all outline-none font-medium text-slate-800"
+                                    placeholder="712345678"
+                                    type="tel"
+                                />
+                            </div>
+                            {errors.mobileLocal && <span className="text-[10px] text-red-500 font-bold ml-4">{errors.mobileLocal.message}</span>}
+                        </div>
+
+                        <div className="space-y-1 text-left">
+                            <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">Session Lead Secret Token (Optional)</label>
+                            <div className="relative group">
+                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-100 group-focus-within:text-[#276332] transition-colors" size={20} />
+                                <input
+                                    type="password"
+                                    {...register('adminToken')}
+                                    className="rounded-2xl border border-emerald-50 bg-emerald-50/30 focus:border-[#276332] focus:ring-4 focus:ring-[#276332]/5 w-full py-3.5 px-5 transition-all outline-none font-medium text-[#276332] placeholder-[#276332]/30"
+                                    placeholder="••••••••••••"
+                                />
+                            </div>
                         </div>
 
                         {/* Academic Placement - Important for Module 4 */}
@@ -125,7 +204,7 @@ const Register = () => {
                                 <span className="text-[11px] font-black uppercase tracking-widest text-[#276332]">Academic Placement</span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
+                                <div className="space-y-1 text-left">
                                     <label className="text-[10px] font-bold text-slate-400 ml-2">YEAR</label>
                                     <select
                                         {...register('year', { required: 'Required' })}
@@ -138,7 +217,7 @@ const Register = () => {
                                         <option value="Y4">Year 4</option>
                                     </select>
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-1 text-left">
                                     <label className="text-[10px] font-bold text-slate-400 ml-2">SEMESTER</label>
                                     <select
                                         {...register('semester', { required: 'Required' })}
@@ -149,7 +228,7 @@ const Register = () => {
                                         <option value="S2">Semester 2</option>
                                     </select>
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-1 text-left">
                                     <label className="text-[10px] font-bold text-slate-400 ml-2">MAIN GROUP</label>
                                     <select
                                         {...register('mainGroup', { required: 'Required' })}
@@ -161,7 +240,7 @@ const Register = () => {
                                         ))}
                                     </select>
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-1 text-left">
                                     <label className="text-[10px] font-bold text-slate-400 ml-2">SUB GROUP</label>
                                     <select
                                         {...register('subGroup', { required: 'Required' })}
@@ -175,7 +254,7 @@ const Register = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-1">
+                        <div className="space-y-1 text-left">
                             <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-4">Secure Password</label>
                             <input
                                 type="password"
@@ -209,7 +288,7 @@ const Register = () => {
                             <div className="relative flex justify-center text-xs uppercase font-bold"><span className="bg-white px-4 text-slate-300">Member already?</span></div>
                         </div>
 
-                        <p className="text-center text-sm text-slate-500 font-medium">
+                        <p className="text-center text-sm text-slate-500 font-medium text-left">
                             Have an account?{' '}
                             <button
                                 type="button"
