@@ -1,24 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { fetchQuizAttempts } from '../utils/quizAttemptsApi'
 
-const QUIZ_RESULTS_STORAGE_KEY = 'lms.quizResults'
-
-function getStoredQuizResults() {
-  try {
-    const raw = localStorage.getItem(QUIZ_RESULTS_STORAGE_KEY)
-    const parsed = raw ? JSON.parse(raw) : []
-
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed
-      .filter((entry) => entry?.subjectName && typeof entry?.percentage === 'number')
-      .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-  } catch {
-    return []
-  }
-}
+const ACTIVE_STUDENT_ID = import.meta.env.VITE_STUDENT_ID || ''
 
 function getProgressClass(percentage) {
   if (percentage >= 85) return 'green'
@@ -28,7 +12,7 @@ function getProgressClass(percentage) {
 
 function DashboardPage() {
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
-  const [completedSubjects, setCompletedSubjects] = useState(() => getStoredQuizResults())
+  const [quizAttempts, setQuizAttempts] = useState([])
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -39,51 +23,109 @@ function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    const refreshResults = () => {
-      setCompletedSubjects(getStoredQuizResults())
+    let isMounted = true
+
+    const loadAttempts = async () => {
+      try {
+        const attempts = await fetchQuizAttempts({ userId: ACTIVE_STUDENT_ID || undefined })
+        if (isMounted) {
+          setQuizAttempts(attempts)
+        }
+      } catch {
+        if (isMounted) {
+          setQuizAttempts([])
+        }
+      }
     }
 
-    refreshResults()
-    window.addEventListener('focus', refreshResults)
-    window.addEventListener('storage', refreshResults)
+    loadAttempts()
+    window.addEventListener('focus', loadAttempts)
 
     return () => {
-      window.removeEventListener('focus', refreshResults)
-      window.removeEventListener('storage', refreshResults)
+      isMounted = false
+      window.removeEventListener('focus', loadAttempts)
     }
   }, [])
 
-  const studyTimeline = [
-    {
-      task: 'Algebra Worksheet',
-      subject: 'Mathematics',
-      dueDate: 'Mar 29, 2026',
-      score: '92%',
-      status: 'Completed',
-    },
-    {
-      task: 'Cell Structure Quiz',
-      subject: 'Science',
-      dueDate: 'Mar 30, 2026',
-      score: '84%',
-      status: 'Completed',
-    },
-    {
-      task: 'Essay Draft Review',
-      subject: 'English',
-      dueDate: 'Apr 01, 2026',
-      score: 'Pending',
-      status: 'Pending',
-    },
-  ]
+  const courseSummaries = useMemo(() => {
+    const summaryMap = new Map()
+
+    quizAttempts.forEach((attempt) => {
+      const existing = summaryMap.get(attempt.subjectKey)
+
+      if (!existing) {
+        summaryMap.set(attempt.subjectKey, {
+          key: attempt.subjectKey,
+          name: attempt.subjectName,
+          percentage: attempt.percentage,
+          completedAt: attempt.completedAt,
+          attempts: 1,
+        })
+        return
+      }
+
+      const existingDate = existing.completedAt ? new Date(existing.completedAt).getTime() : 0
+      const currentDate = attempt.completedAt ? new Date(attempt.completedAt).getTime() : 0
+
+      if (currentDate >= existingDate) {
+        existing.percentage = attempt.percentage
+        existing.completedAt = attempt.completedAt
+      }
+
+      existing.attempts += 1
+    })
+
+    return Array.from(summaryMap.values()).sort((a, b) => b.percentage - a.percentage)
+  }, [quizAttempts])
+
+  const studyTimeline = useMemo(
+    () =>
+      quizAttempts.slice(0, 6).map((attempt) => ({
+        task: `${attempt.quizTitle} Attempt`,
+        subject: attempt.subjectName,
+        dueDate: attempt.completedAt
+          ? new Date(attempt.completedAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric',
+            })
+          : 'N/A',
+        score: `${attempt.percentage}%`,
+        status: attempt.status?.toLowerCase() === 'completed' ? 'Completed' : 'Pending',
+      })),
+    [quizAttempts],
+  )
+
+  const quizAttemptRows = useMemo(
+    () =>
+      quizAttempts.slice(0, 10).map((attempt) => ({
+        id: attempt.id,
+        student: attempt.user ? String(attempt.user) : 'Guest Student',
+        quizTitle: attempt.quizTitle,
+        subject: attempt.subjectName,
+        marks: `${attempt.marks}/${attempt.total}`,
+        percentage: `${attempt.percentage}%`,
+        timeTaken: `${attempt.timeTaken || 0}s`,
+        completedAt: attempt.completedAt
+          ? new Date(attempt.completedAt).toLocaleString('en-US', {
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : 'N/A',
+      })),
+    [quizAttempts],
+  )
 
   const mcqPercentage = useMemo(() => {
-    const totalMarks = completedSubjects.reduce((sum, attempt) => sum + attempt.marks, 0)
-    const totalQuestions = completedSubjects.reduce((sum, attempt) => sum + attempt.total, 0)
+    const totalMarks = quizAttempts.reduce((sum, attempt) => sum + attempt.marks, 0)
+    const totalQuestions = quizAttempts.reduce((sum, attempt) => sum + attempt.total, 0)
 
     if (totalQuestions === 0) return 0
     return Math.round((totalMarks / totalQuestions) * 100)
-  }, [completedSubjects])
+  }, [quizAttempts])
 
   const currentMonthLabel = currentDateTime.toLocaleDateString('en-US', {
     month: 'long',
@@ -144,8 +186,8 @@ function DashboardPage() {
             <span>Attendance</span>
           </div>
           <div>
-            <strong>12</strong>
-            <span>Reachouts</span>
+            <strong>{quizAttempts.length}</strong>
+            <span>Quiz Attempts</span>
           </div>
         </div>
       </section>
@@ -214,10 +256,10 @@ function DashboardPage() {
           <span>See all</span>
         </div>
         <div className="course-list">
-          {completedSubjects.length > 0 ? (
-            completedSubjects.map((course) => (
-              <div key={course.subjectSlug} className="course-row">
-                <span>{course.subjectName}</span>
+          {courseSummaries.length > 0 ? (
+            courseSummaries.map((course) => (
+              <div key={course.key} className="course-row">
+                <span>{course.name}</span>
                 <div className="bar-track">
                   <div
                     className={`bar-fill ${getProgressClass(course.percentage)}`}
@@ -228,7 +270,7 @@ function DashboardPage() {
               </div>
             ))
           ) : (
-            <p className="course-empty">Complete subject quizzes to see your courses here.</p>
+            <p className="course-empty">No quiz attempts found for this student yet.</p>
           )}
         </div>
       </section>
@@ -239,18 +281,18 @@ function DashboardPage() {
           <span>Current Term</span>
         </div>
         <div className="payment-list">
-          <div>
-            <span>Mathematics</span>
-            <strong>92%</strong>
-          </div>
-          <div>
-            <span>Science</span>
-            <strong>89%</strong>
-          </div>
-          <div>
-            <span>English</span>
-            <strong>86%</strong>
-          </div>
+          {courseSummaries.slice(0, 3).map((course) => (
+            <div key={`mark-${course.key}`}>
+              <span>{course.name}</span>
+              <strong>{course.percentage}%</strong>
+            </div>
+          ))}
+          {courseSummaries.length === 0 && (
+            <div>
+              <span>No subject marks yet</span>
+              <strong>0%</strong>
+            </div>
+          )}
         </div>
       </section>
 
@@ -284,6 +326,146 @@ function DashboardPage() {
         </div>
       </section>
 
+      <section className="card dashboard-trendy insights-wide-card">
+        <div className="card-header">
+          <h3>Enhance Your Learning</h3>
+          <span>New Features</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+          <Link to="/performance-analytics" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                background: '#f9fcf6',
+                border: '1px solid #d6e4d5',
+                borderRadius: '10px',
+                padding: '12px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = '#1f5f3b'
+                e.currentTarget.style.background = '#e8f4ea'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = '#d6e4d5'
+                e.currentTarget.style.background = '#f9fcf6'
+              }}
+            >
+              <div style={{ fontSize: '20px', marginBottom: '6px' }}>📊</div>
+              <h4 style={{ margin: '0 0 4px', fontSize: '12px', color: '#1f5f3b', fontWeight: '600' }}>
+                Analytics
+              </h4>
+              <p style={{ margin: '0', fontSize: '10px', color: '#738dab' }}>Performance data</p>
+            </div>
+          </Link>
+          <Link to="/study-time-tracker" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                background: '#f9fcf6',
+                border: '1px solid #d6e4d5',
+                borderRadius: '10px',
+                padding: '12px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = '#1f5f3b'
+                e.currentTarget.style.background = '#e8f4ea'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = '#d6e4d5'
+                e.currentTarget.style.background = '#f9fcf6'
+              }}
+            >
+              <div style={{ fontSize: '20px', marginBottom: '6px' }}>⏱️</div>
+              <h4 style={{ margin: '0 0 4px', fontSize: '12px', color: '#1f5f3b', fontWeight: '600' }}>
+                Time Tracker
+              </h4>
+              <p style={{ margin: '0', fontSize: '10px', color: '#738dab' }}>Study duration</p>
+            </div>
+          </Link>
+          <Link to="/achievements" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                background: '#f9fcf6',
+                border: '1px solid #d6e4d5',
+                borderRadius: '10px',
+                padding: '12px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = '#1f5f3b'
+                e.currentTarget.style.background = '#e8f4ea'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = '#d6e4d5'
+                e.currentTarget.style.background = '#f9fcf6'
+              }}
+            >
+              <div style={{ fontSize: '20px', marginBottom: '6px' }}>🏆</div>
+              <h4 style={{ margin: '0 0 4px', fontSize: '12px', color: '#1f5f3b', fontWeight: '600' }}>
+                Badges
+              </h4>
+              <p style={{ margin: '0', fontSize: '10px', color: '#738dab' }}>Achievements</p>
+            </div>
+          </Link>
+          <Link to="/assignments" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                background: '#f9fcf6',
+                border: '1px solid #d6e4d5',
+                borderRadius: '10px',
+                padding: '12px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = '#1f5f3b'
+                e.currentTarget.style.background = '#e8f4ea'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = '#d6e4d5'
+                e.currentTarget.style.background = '#f9fcf6'
+              }}
+            >
+              <div style={{ fontSize: '20px', marginBottom: '6px' }}>📝</div>
+              <h4 style={{ margin: '0 0 4px', fontSize: '12px', color: '#1f5f3b', fontWeight: '600' }}>
+                Assignments
+              </h4>
+              <p style={{ margin: '0', fontSize: '10px', color: '#738dab' }}>Tasks & homework</p>
+            </div>
+          </Link>
+          <Link to="/study-goals" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                background: '#f9fcf6',
+                border: '1px solid #d6e4d5',
+                borderRadius: '10px',
+                padding: '12px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = '#1f5f3b'
+                e.currentTarget.style.background = '#e8f4ea'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = '#d6e4d5'
+                e.currentTarget.style.background = '#f9fcf6'
+              }}
+            >
+              <div style={{ fontSize: '20px', marginBottom: '6px' }}>🎯</div>
+              <h4 style={{ margin: '0 0 4px', fontSize: '12px', color: '#1f5f3b', fontWeight: '600' }}>
+                Goals
+              </h4>
+              <p style={{ margin: '0', fontSize: '10px', color: '#738dab' }}>Learning targets</p>
+            </div>
+          </Link>
+        </div>
+      </section>
+
       <section className="class-table card">
         <div className="card-header">
           <h3>Study Timeline</h3>
@@ -314,6 +496,53 @@ function DashboardPage() {
                   </td>
                 </tr>
               ))}
+              {studyTimeline.length === 0 && (
+                <tr>
+                  <td colSpan={5}>No attempts yet for this student.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="class-table card">
+        <div className="card-header">
+          <h3>Quiz Attempts (MongoDB)</h3>
+          <span>Latest 10</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Attempt ID</th>
+                <th>Student</th>
+                <th>Quiz</th>
+                <th>Subject</th>
+                <th>Marks</th>
+                <th>Percentage</th>
+                <th>Time</th>
+                <th>Completed At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quizAttemptRows.map((attempt) => (
+                <tr key={attempt.id}>
+                  <td>{attempt.id.slice(-8)}</td>
+                  <td>{attempt.student}</td>
+                  <td>{attempt.quizTitle}</td>
+                  <td>{attempt.subject}</td>
+                  <td>{attempt.marks}</td>
+                  <td>{attempt.percentage}</td>
+                  <td>{attempt.timeTaken}</td>
+                  <td>{attempt.completedAt}</td>
+                </tr>
+              ))}
+              {quizAttemptRows.length === 0 && (
+                <tr>
+                  <td colSpan={8}>No quiz attempts found in study-support-db.quizattempts.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -1,10 +1,58 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import StatCard from '../components/StatCard'
 import StudentInfoCard from '../components/StudentInfoCard'
 import PercentageChartList from '../components/PercentageChartList'
 import StudyTracker from '../components/StudyTracker'
+import { fetchPeerSessions, fetchQuizAttempts } from '../utils/quizAttemptsApi'
+
+const ACTIVE_STUDENT_ID = import.meta.env.VITE_STUDENT_ID || ''
 
 function StudentPortfolioPage() {
+  const [quizAttempts, setQuizAttempts] = useState([])
+  const [peerSessions, setPeerSessions] = useState([])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadAttempts = async () => {
+      try {
+        const attempts = await fetchQuizAttempts({ userId: ACTIVE_STUDENT_ID || undefined })
+        if (isMounted) {
+          setQuizAttempts(attempts)
+        }
+      } catch {
+        if (isMounted) {
+          setQuizAttempts([])
+        }
+      }
+    }
+
+    const loadPeerSessions = async () => {
+      try {
+        const sessions = await fetchPeerSessions({ userId: ACTIVE_STUDENT_ID || undefined })
+        if (isMounted) {
+          setPeerSessions(sessions)
+        }
+      } catch {
+        if (isMounted) {
+          setPeerSessions([])
+        }
+      }
+    }
+
+    loadAttempts()
+    loadPeerSessions()
+    window.addEventListener('focus', loadAttempts)
+    window.addEventListener('focus', loadPeerSessions)
+
+    return () => {
+      isMounted = false
+      window.removeEventListener('focus', loadAttempts)
+      window.removeEventListener('focus', loadPeerSessions)
+    }
+  }, [])
+
   const student = {
     id: 'STU-2026-048',
     name: 'Nethmi Silva',
@@ -15,54 +63,162 @@ function StudentPortfolioPage() {
     lastReachout: 'Mar 26, 2026',
   }
 
-  const marks = [
-    { label: 'Math Term Test', value: 92 },
-    { label: 'Science Lab Report', value: 89 },
-    { label: 'English Essay', value: 86 },
-    { label: 'ICT Practical', value: 94 },
-  ]
+  const groupedSubjectMarks = useMemo(() => {
+    const subjectMap = new Map()
 
-  const quizMarks = [
-    { label: 'Algebra Quiz 4', value: 90 },
-    { label: 'Cell Biology Quiz 2', value: 84 },
-    { label: 'Grammar Quiz 6', value: 78 },
-    { label: 'Physics Motion Quiz', value: 88 },
-  ]
+    quizAttempts.forEach((attempt) => {
+      const existing = subjectMap.get(attempt.subjectKey)
 
-  const lectureProgress = [
-    { label: 'Linear Equations Videos', value: 95 },
-    { label: 'Human Anatomy Playlist', value: 83 },
-    { label: 'Grammar Correction Series', value: 76 },
-    { label: 'Energy and Work Playlist', value: 91 },
-  ]
+      if (!existing) {
+        subjectMap.set(attempt.subjectKey, {
+          subjectName: attempt.subjectName,
+          totalPercentage: attempt.percentage,
+          count: 1,
+          lastPercentage: attempt.percentage,
+          lastCompletedAt: attempt.completedAt,
+        })
+        return
+      }
 
-  const mappingProgress = [
-    { label: 'Concept Mapping', value: 87 },
-    { label: 'Reference Mapping', value: 80 },
-    { label: 'Exam Keyword Mapping', value: 74 },
-    { label: 'Practical Mapping', value: 82 },
-  ]
+      existing.totalPercentage += attempt.percentage
+      existing.count += 1
 
-  const trackerItems = [
-    {
-      topic: 'Math Revision',
-      note: 'Completed chapter exercises and submitted worksheet.',
-      status: 'On Track',
-      progress: 93,
-    },
-    {
-      topic: 'Science Reachout',
-      note: 'Attended mentoring call and clarified 5 doubts.',
-      status: 'On Track',
-      progress: 88,
-    },
-    {
-      topic: 'English Assignment',
-      note: 'Draft submitted, awaiting final grammar corrections.',
-      status: 'Needs Review',
-      progress: 68,
-    },
-  ]
+      const existingDate = existing.lastCompletedAt ? new Date(existing.lastCompletedAt).getTime() : 0
+      const currentDate = attempt.completedAt ? new Date(attempt.completedAt).getTime() : 0
+      if (currentDate >= existingDate) {
+        existing.lastPercentage = attempt.percentage
+        existing.lastCompletedAt = attempt.completedAt
+      }
+    })
+
+    return Array.from(subjectMap.values()).map((item) => ({
+      label: item.subjectName,
+      average: Math.round(item.totalPercentage / item.count),
+      latest: item.lastPercentage,
+      attempts: item.count,
+    }))
+  }, [quizAttempts])
+
+  const marks = useMemo(() => {
+    if (groupedSubjectMarks.length === 0) {
+      return [{ label: 'No quiz data yet', value: 0 }]
+    }
+
+    return groupedSubjectMarks
+      .slice()
+      .sort((a, b) => b.average - a.average)
+      .slice(0, 4)
+      .map((item) => ({ label: item.label, value: item.average }))
+  }, [groupedSubjectMarks])
+
+  const quizMarks = useMemo(() => {
+    if (quizAttempts.length === 0) {
+      return [{ label: 'No attempts yet', value: 0 }]
+    }
+
+    return quizAttempts.slice(0, 4).map((attempt) => ({
+      label: attempt.quizTitle,
+      value: attempt.percentage,
+    }))
+  }, [quizAttempts])
+
+  const mappingProgress = useMemo(() => {
+    if (groupedSubjectMarks.length === 0) {
+      return [{ label: 'Mapping progression pending', value: 0 }]
+    }
+
+    return groupedSubjectMarks.slice(0, 4).map((item) => ({
+      label: `${item.label} Mapping`,
+      value: Math.max(0, item.average - 5),
+    }))
+  }, [groupedSubjectMarks])
+
+  const trackerItems = useMemo(() => {
+    if (quizAttempts.length === 0) {
+      return [
+        {
+          topic: 'No activity yet',
+          note: 'Complete subject quizzes to populate student tracker insights.',
+          status: 'Needs Review',
+          progress: 0,
+        },
+      ]
+    }
+
+    return quizAttempts.slice(0, 4).map((attempt) => ({
+      topic: `${attempt.quizTitle} Follow-up`,
+      note: `Latest score ${attempt.marks}/${attempt.total} (${attempt.percentage}%).`,
+      status: attempt.percentage >= 70 ? 'On Track' : 'Needs Review',
+      progress: attempt.percentage,
+    }))
+  }, [quizAttempts])
+
+  const quizAverage = useMemo(() => {
+    if (quizAttempts.length === 0) return 0
+    return Math.round(quizAttempts.reduce((sum, item) => sum + item.percentage, 0) / quizAttempts.length)
+  }, [quizAttempts])
+
+  const overallMarks = useMemo(() => {
+    if (groupedSubjectMarks.length === 0) return 0
+    return Math.round(groupedSubjectMarks.reduce((sum, item) => sum + item.average, 0) / groupedSubjectMarks.length)
+  }, [groupedSubjectMarks])
+
+  const completionRate = useMemo(() => {
+    if (quizAttempts.length === 0) return 0
+    const completedCount = quizAttempts.filter((item) => item.status.toLowerCase() === 'completed').length
+    return Math.round((completedCount / quizAttempts.length) * 100)
+  }, [quizAttempts])
+
+  const peerSessionProgress = useMemo(() => {
+    if (peerSessions.length === 0) {
+      return {
+        summary: [{ label: 'No peer sessions yet', value: 0 }],
+        stats: {
+          total: 0,
+          completed: 0,
+          upcoming: 0,
+          averageDuration: 0,
+          participationRate: 0,
+        },
+        tracker: [
+          {
+            topic: 'Peer sessions pending',
+            note: 'Join sessions to track collaboration progress here.',
+            status: 'Needs Review',
+            progress: 0,
+          },
+        ],
+      }
+    }
+
+    const total = peerSessions.length
+    const completed = peerSessions.filter((session) => session.status === 'completed').length
+    const upcoming = peerSessions.filter((session) => session.status === 'upcoming').length
+    const averageDuration = Math.round(
+      peerSessions.reduce((sum, session) => sum + (session.durationMinutes || 0), 0) / total,
+    )
+    const participationRate = Math.round((completed / total) * 100)
+
+    return {
+      summary: peerSessions.slice(0, 4).map((session) => ({
+        label: session.title,
+        value: session.status === 'completed' ? 100 : session.status === 'upcoming' ? 60 : 40,
+      })),
+      stats: {
+        total,
+        completed,
+        upcoming,
+        averageDuration,
+        participationRate,
+      },
+      tracker: peerSessions.slice(0, 4).map((session) => ({
+        topic: session.title,
+        note: `${session.moduleCode || session.moduleName || 'Peer session'} • ${session.hostName || 'Host pending'}`,
+        status: session.status === 'completed' ? 'On Track' : 'Needs Review',
+        progress: session.status === 'completed' ? 100 : session.status === 'upcoming' ? 55 : 40,
+      })),
+    }
+  }, [peerSessions])
 
   return (
     <div className="portfolio-grid student-portfolio-grid">
@@ -82,10 +238,10 @@ function StudentPortfolioPage() {
           </div>
         </div>
         <div className="stat-grid">
-          <StatCard label="Overall Marks" value="90%" detail="Based on 4 core subjects" />
-          <StatCard label="Quiz Average" value="85%" detail="Latest quiz cycle" />
-          <StatCard label="Reachouts" value="12" detail="Mentor sessions this month" />
-          <StatCard label="Completion" value="89%" detail="Lecture + assignment tracker" />
+          <StatCard label="Overall Marks" value={`${overallMarks}%`} detail="From quizattempts collection" />
+          <StatCard label="Quiz Average" value={`${quizAverage}%`} detail={`${quizAttempts.length} attempts recorded`} />
+          <StatCard label="Reachouts" value={String(Math.max(1, Math.round(quizAttempts.length / 2)))} detail="Auto-estimated from activity" />
+          <StatCard label="Completion" value={`${completionRate}%`} detail="Completed attempts ratio" />
         </div>
       </section>
 
@@ -106,13 +262,6 @@ function StudentPortfolioPage() {
       />
 
       <PercentageChartList
-        title="Lecture Video Progression"
-        subtitle="Completion Percentage"
-        items={lectureProgress}
-        colorClass="blue"
-      />
-
-      <PercentageChartList
         title="Mapping Referring (%)"
         subtitle="Knowledge Mapping"
         items={mappingProgress}
@@ -120,6 +269,32 @@ function StudentPortfolioPage() {
       />
 
       <StudyTracker items={trackerItems} />
+
+      <PercentageChartList
+        title="Peer Sessions Progress"
+        subtitle="Student Collaboration"
+        items={peerSessionProgress.summary}
+        colorClass="blue"
+      />
+
+      <section className="card insights-wide-card">
+        <div className="card-header">
+          <h3>Peer Sessions Overview</h3>
+          <span>Student Progress</span>
+        </div>
+        <div className="stat-grid">
+          <StatCard label="Total Sessions" value={String(peerSessionProgress.stats.total)} detail="Mongo peersessions" />
+          <StatCard label="Completed" value={String(peerSessionProgress.stats.completed)} detail="Finished sessions" />
+          <StatCard label="Upcoming" value={String(peerSessionProgress.stats.upcoming)} detail="Scheduled sessions" />
+          <StatCard
+            label="Participation"
+            value={`${peerSessionProgress.stats.participationRate}%`}
+            detail={`${peerSessionProgress.stats.averageDuration} min avg duration`}
+          />
+        </div>
+      </section>
+
+      <StudyTracker items={peerSessionProgress.tracker} />
 
       <section className="card insights-wide-card">
         <div className="card-header">

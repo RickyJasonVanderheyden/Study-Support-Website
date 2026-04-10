@@ -1,12 +1,20 @@
 # LMSDB Backend
 
-Simple Express backend for LMS subjects and MCQ quiz scoring.
+Simple Express + MongoDB backend for LMS subjects and MCQ quiz scoring.
 
 ## Setup
 
 ```bash
 npm install
 ```
+
+Copy environment variables:
+
+```bash
+cp .env.example .env
+```
+
+Set a valid MongoDB Atlas/local URI in `MONGODB_URI`.
 
 ## Run
 
@@ -28,6 +36,9 @@ Server runs on `http://localhost:5000` by default.
 - `GET /api/subjects`
 - `GET /api/subjects/:slug/questions`
 - `POST /api/subjects/:slug/submit`
+- `GET /api/attempts`
+
+`/api/health` now includes database status (`connected` / `disconnected`).
 
 ### Submit payload example
 

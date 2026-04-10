@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { getSubjectBySlug } from '../data/subjectQuestions'
+import { submitSubjectQuiz } from '../utils/quizAttemptsApi'
 
 const QUIZ_RESULTS_STORAGE_KEY = 'lms.quizResults'
+const ACTIVE_STUDENT_ID = import.meta.env.VITE_STUDENT_ID || null
 
 function saveQuizResult(result) {
   try {
@@ -23,6 +25,9 @@ function SubjectQuestionsPage() {
   const subject = getSubjectBySlug(subjectSlug)
   const [answers, setAnswers] = useState({})
   const [submitted, setSubmitted] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [startedAt, setStartedAt] = useState(() => Date.now())
 
   if (!subject) {
     return <Navigate to="/" replace />
@@ -51,12 +56,21 @@ function SubjectQuestionsPage() {
     }))
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isComplete) {
       return
     }
 
+    setSubmitError('')
+    setIsSubmitting(true)
+
     const percentage = Math.round((score / totalQuestions) * 100)
+    const normalizedAnswers = Array.from({ length: totalQuestions }, (_, index) => {
+      const value = answers[index]
+      return Number.isInteger(value) ? value : null
+    })
+    const timeTaken = Math.max(1, Math.round((Date.now() - startedAt) / 1000))
+
     saveQuizResult({
       subjectSlug: subject.slug,
       subjectName: subject.name,
@@ -66,12 +80,27 @@ function SubjectQuestionsPage() {
       completedAt: new Date().toISOString(),
     })
 
+    try {
+      await submitSubjectQuiz({
+        subjectSlug: subject.slug,
+        answers: normalizedAnswers,
+        userId: ACTIVE_STUDENT_ID,
+        timeTaken,
+      })
+    } catch {
+      setSubmitError('Quiz submitted locally, but database sync failed. Please try again later.')
+    }
+
     setSubmitted(true)
+    setIsSubmitting(false)
   }
 
   const handleRetake = () => {
     setAnswers({})
     setSubmitted(false)
+    setSubmitError('')
+    setIsSubmitting(false)
+    setStartedAt(Date.now())
   }
 
   return (
@@ -132,13 +161,20 @@ function SubjectQuestionsPage() {
         </ol>
 
         <div className="quiz-actions">
-          <button type="button" onClick={handleSubmit} disabled={!isComplete || submitted} className="quiz-submit-btn">
-            Submit Quiz
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!isComplete || submitted || isSubmitting}
+            className="quiz-submit-btn"
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
           </button>
           <button type="button" onClick={handleRetake} className="quiz-retake-btn">
             Retake Quiz
           </button>
         </div>
+
+        {submitError && <p className="course-empty">{submitError}</p>}
 
         {submitted && (
           <div className="quiz-result">
