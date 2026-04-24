@@ -11,7 +11,7 @@ const ChatBot = () => {
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
     const user = JSON.parse(localStorage.getItem('user'));
-    const isAdmin = user?.role === 'admin' || user?.role === 'instructor';
+    const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'instructor';
 
     // Initial welcome message
     useEffect(() => {

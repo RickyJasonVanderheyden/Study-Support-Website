@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Search, Users, Bot, LayoutDashboard, UserCircle2 } from 'lucide-react';
+import { Search, Users, Bot, LayoutDashboard } from 'lucide-react';
 
 const navItems = [
   { label: 'AI Tools', to: '/module2', icon: Bot },
@@ -15,15 +15,10 @@ const SiteHeader = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    sessionStorage.removeItem('module2_storageUserId');
-    navigate('/login');
-  };
+
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#D8E8DC] bg-white shadow-sm">
+    <header className="sticky top-0 z-10 border-b border-[#D8E8DC] bg-white shadow-sm">
       <div className="mx-auto flex max-w-full items-center justify-between gap-8 px-6 py-3">
         {/* Logo/Brand */}
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -53,24 +48,7 @@ const SiteHeader = () => {
           })}
         </nav>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-4 ml-auto">
-          <Link
-            to="/profile"
-            className="flex items-center justify-center w-8 h-8 bg-[#1E4D35] text-white hover:bg-[#2E5C42] transition-colors"
-            title="Profile"
-          >
-            <UserCircle2 className="h-5 w-5" />
-          </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1E4D35] hover:bg-[#2E5C42] transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </button>
-        </div>
+        {/* Right Actions Removed */}
       </div>
     </header>
   );

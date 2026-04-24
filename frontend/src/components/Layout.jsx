@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard, BookOpen, Users, Search, LogOut, Bell,
-    Menu, X, TrendingUp, Settings, Shield
+    LayoutDashboard, BookOpen, Users, Search, LogOut,
+    Menu, X, TrendingUp, Shield
 } from 'lucide-react';
 import ChatBot from './common/ChatBot';
+import NotificationBell from './common/NotificationBell';
 
 const Layout = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const location = useLocation();
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user'));
-
+    
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         navigate('/login');
     };
+
+
 
     const isActive = (path) => {
         if (path === '/') return location.pathname === '/';
@@ -31,7 +34,7 @@ const Layout = ({ children }) => {
         { label: 'Member Finder', icon: <Search size={18} />, path: '/module4' },
     ];
 
-    const adminItems = user?.role === 'admin' ? [
+    const adminItems = (user?.role === 'admin' || user?.role === 'super_admin') ? [
         { label: 'Admin Panel', icon: <Shield size={18} />, path: '/admin', color: 'text-amber-500' }
     ] : [];
 
@@ -74,18 +77,40 @@ const Layout = ({ children }) => {
 
                 {/* User Profile at bottom */}
                 {user && (
-                    <div className="border-t border-slate-700/50 px-4 py-4">
-                        <Link to="/profile" className="flex items-center gap-3 hover:bg-slate-800 rounded-xl px-1 py-1 transition-colors group">
-                            <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 group-hover:bg-indigo-500 transition-colors">
-                                {user.name?.charAt(0).toUpperCase()}
-                            </div>
-                            {sidebarOpen && (
-                                <div className="overflow-hidden flex-1">
-                                    <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                                    <p className="text-xs text-slate-400 truncate">{user.registrationNumber || user.email}</p>
+                    <div className="border-t border-slate-700/50 px-4 py-4 space-y-2">
+                        <div className="flex items-center justify-between group">
+                            <Link to="/profile" className="flex items-center gap-3 hover:bg-slate-800 rounded-xl px-1 py-1 transition-colors flex-1 overflow-hidden">
+                                <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 group-hover:bg-indigo-500 transition-colors">
+                                    {user.name?.charAt(0).toUpperCase()}
                                 </div>
+                                {sidebarOpen && (
+                                    <div className="overflow-hidden">
+                                        <p className="text-sm font-semibold text-white truncate">{user.name}</p>
+                                        <p className="text-xs text-slate-400 truncate">{user.registrationNumber || user.email}</p>
+                                    </div>
+                                )}
+                            </Link>
+                            
+                            {sidebarOpen && (
+                                <button 
+                                    onClick={handleLogout}
+                                    className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                                    title="Logout"
+                                >
+                                    <LogOut size={18} />
+                                </button>
                             )}
-                        </Link>
+                        </div>
+                        
+                        {!sidebarOpen && (
+                            <button 
+                                onClick={handleLogout}
+                                className="w-full flex justify-center p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                                title="Logout"
+                            >
+                                <LogOut size={18} />
+                            </button>
+                        )}
                     </div>
                 )}
             </aside>
@@ -93,7 +118,7 @@ const Layout = ({ children }) => {
             {/* Main Content */}
             <div className={`flex-1 flex flex-col ${sidebarOpen ? 'ml-64' : 'ml-20'} transition-all duration-300`}>
                 {/* Top Navbar */}
-                <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+                <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-40 shadow-sm">
                     <div className="flex items-center gap-4">
                         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -106,15 +131,7 @@ const Layout = ({ children }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                            <Bell size={20} />
-                        </button>
-                        <button onClick={() => navigate('/profile')} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="My Profile">
-                            <Settings size={20} />
-                        </button>
-                        <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg font-medium transition-colors">
-                            <LogOut size={16} /> Logout
-                        </button>
+                        <NotificationBell />
                     </div>
                 </header>
 
