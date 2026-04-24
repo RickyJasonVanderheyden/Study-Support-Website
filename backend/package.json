@@ -26,6 +26,7 @@
     "nodemailer": "^8.0.5",
     "office-text-extractor": "^3.0.1",
     "pdf-parse": "^1.1.1",
+    "pusher": "^5.2.0",
     "twilio": "^5.13.1"
   },
   "devDependencies": {
