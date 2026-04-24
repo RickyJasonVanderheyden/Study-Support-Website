@@ -27,7 +27,7 @@ const BossAdminLogin = () => {
       toast.success('System override granted. Welcome, Terminal Operator.', { icon: '🔑' });
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      navigate('/super-admin-dashboard');
+      navigate('/');
     } catch (error) {
       toast.error(error.response?.data?.error || 'Authentication failure: Check credentials');
     } finally {

@@ -96,7 +96,7 @@ const FindMembersSection = ({ groups = [] }) => {
         return parts.join(' · ');
     };
 
-    const isAdmin = user?.role === 'admin' || user?.role === 'instructor';
+    const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'instructor';
     const hasPlacement = isAdmin || (placement && placement.year && placement.semester && placement.mainGroup && placement.subGroup);
 
     return (

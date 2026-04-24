@@ -168,7 +168,7 @@ const Profile = () => {
             <div className="grid gap-8 bg-gradient-to-r from-[#173e1f] via-[#1E4D35] to-[#2E5C42] px-6 py-10 text-white md:grid-cols-[1.4fr_1fr] md:px-10">
               <div className="space-y-5">
                 <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.28em] text-[#D6ECD8]">
-                  {user.role === 'admin' ? '🛡️ Admin' : user.role === 'instructor' ? '🎓 Instructor' : '📚 Student'} profile
+                  {(user.role === 'admin' || user.role === 'super_admin') ? '🛡️ Admin' : user.role === 'instructor' ? '🎓 Instructor' : '📚 Student'} profile
                 </p>
 
                 {/* Editable Name */}

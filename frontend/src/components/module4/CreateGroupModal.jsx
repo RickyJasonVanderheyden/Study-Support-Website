@@ -88,7 +88,7 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
         }
     };
 
-    const isAdmin = user?.role === 'admin' || user?.role === 'instructor';
+    const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'instructor';
     const hasPlacement = isAdmin || (user?.year && user?.semester && user?.mainGroup && user?.subGroup);
 
     return (
