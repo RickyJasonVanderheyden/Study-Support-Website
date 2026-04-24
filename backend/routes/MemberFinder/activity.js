@@ -12,7 +12,7 @@ router.get('/:groupId', authMiddleware, async (req, res) => {
 
         // Check access
         const isMember = group.members.some(m => m.user.toString() === req.user._id.toString());
-        if (!isMember && req.user.role !== 'admin' && req.user.role !== 'instructor') {
+        if (!isMember && req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'instructor') {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -56,7 +56,7 @@ router.get('/:groupId/stats', authMiddleware, async (req, res) => {
             const memberId = m.user._id ? m.user._id.toString() : m.user.toString();
             return memberId === req.user._id.toString();
         });
-        if (!isMember && req.user.role !== 'admin' && req.user.role !== 'instructor') {
+        if (!isMember && req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'instructor') {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -128,7 +128,7 @@ router.get('/:groupId/contributions', authMiddleware, async (req, res) => {
             const memberId = m.user._id ? m.user._id.toString() : m.user.toString();
             return memberId === req.user._id.toString();
         });
-        if (!isMember && req.user.role !== 'admin' && req.user.role !== 'instructor') {
+        if (!isMember && req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'instructor') {
             return res.status(403).json({ error: 'Access denied' });
         }
 

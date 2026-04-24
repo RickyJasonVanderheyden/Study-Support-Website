@@ -5,6 +5,7 @@ const Group = require('../../models/Group');
 const User = require('../../models/User');
 const ActivityLog = require('../../models/ActivityLog');
 const { findExistingGroupForModule, getUserGroupMap, logActivity } = require('./helpers');
+const { createNotification } = require('../../utils/notificationService');
 
 // Helper: Check if user is the group leader
 const isLeader = (group, userId) => {
@@ -109,7 +110,7 @@ router.get('/:groupId', authMiddleware, async (req, res) => {
 
     if (!group) return res.status(404).json({ error: 'Group not found' });
 
-    if (!isMember(group, req.user._id) && req.user.role !== 'admin' && req.user.role !== 'instructor') {
+    if (!isMember(group, req.user._id) && req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'instructor') {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -131,7 +132,7 @@ router.get('/:groupId/search', authMiddleware, async (req, res) => {
     const group = await Group.findById(req.params.groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
     
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'instructor';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin' || req.user.role === 'instructor';
 
     if (!isLeader(group, req.user._id) && !isAdmin) {
       return res.status(403).json({ error: 'Only the leader can search for new members' });
@@ -181,7 +182,7 @@ router.post('/:groupId/add', authMiddleware, async (req, res) => {
     const group = await Group.findById(req.params.groupId);
 
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    if (!isLeader(group, req.user._id) && req.user.role !== 'admin') {
+    if (!isLeader(group, req.user._id) && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only the leader can add members' });
     }
 
@@ -249,7 +250,7 @@ router.put('/:groupId/update/:userId', authMiddleware, async (req, res) => {
   try {
     const group = await Group.findById(req.params.groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    if (!isLeader(group, req.user._id) && req.user.role !== 'admin') {
+    if (!isLeader(group, req.user._id) && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only the leader can update members' });
     }
 
@@ -315,7 +316,7 @@ router.delete('/:groupId/remove/:userId', authMiddleware, async (req, res) => {
   try {
     const group = await Group.findById(req.params.groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    if (!isLeader(group, req.user._id) && req.user.role !== 'admin') {
+    if (!isLeader(group, req.user._id) && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only the leader can remove members' });
     }
 
@@ -336,6 +337,19 @@ router.delete('/:groupId/remove/:userId', authMiddleware, async (req, res) => {
       `${removedUser?.name || 'A member'} was removed from the group`,
       req.params.userId
     );
+
+    // Notify the removed member
+    await createNotification({
+      recipientId: req.params.userId,
+      senderId: req.user._id,
+      type: 'member_removed',
+      title: 'Removed from Group',
+      message: `You have been removed from "${group.name}" (${group.moduleCode})`,
+      relatedGroup: group._id,
+      notifyAdmins: true,
+      adminTitle: '[Admin] Member Removed',
+      adminMessage: `${req.user.name} removed ${removedUser?.name || 'a member'} from "${group.name}" (${group.moduleCode})`
+    });
 
     const updated = await Group.findById(group._id)
       .populate('members.user', 'name email registrationNumber semester skills bio role');
@@ -367,6 +381,19 @@ router.put('/:groupId/leave', authMiddleware, async (req, res) => {
       `${req.user.name} left the group`
     );
 
+    // Notify admins that a member left
+    await createNotification({
+      recipientId: req.user._id,
+      senderId: req.user._id,
+      type: 'member_left',
+      title: 'Member Left Group',
+      message: `You left "${group.name}" (${group.moduleCode})`,
+      relatedGroup: group._id,
+      notifyAdmins: true,
+      adminTitle: '[Admin] Member Left',
+      adminMessage: `${req.user.name} left group "${group.name}" (${group.moduleCode})`
+    });
+
     res.json({ success: true, message: 'You have left the group' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -378,7 +405,7 @@ router.put('/:groupId/transfer/:userId', authMiddleware, async (req, res) => {
   try {
     const group = await Group.findById(req.params.groupId);
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    if (!isLeader(group, req.user._id) && req.user.role !== 'admin') {
+    if (!isLeader(group, req.user._id) && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only the current leader or admin can transfer leadership' });
     }
 
@@ -423,7 +450,7 @@ router.get('/profile/:userId', authMiddleware, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     // Access check: must share a group, be in the same sub-group, or be admin/instructor
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'instructor';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin' || req.user.role === 'instructor';
     if (!isAdmin && req.params.userId !== req.user._id.toString()) {
       const currentUser = await User.findById(req.user._id);
       const sameSubGroup = currentUser.year === user.year && currentUser.semester === user.semester &&

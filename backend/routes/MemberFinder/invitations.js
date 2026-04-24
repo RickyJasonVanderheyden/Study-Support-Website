@@ -6,6 +6,8 @@ const Group = require('../../models/Group');
 const User = require('../../models/User');
 const ActivityLog = require('../../models/ActivityLog');
 const { findExistingGroupForModule, logActivity } = require('./helpers');
+const { sendGroupInvitationEmail, sendInvitationResponseEmail } = require('../../utils/emailService');
+const { createNotification } = require('../../utils/notificationService');
 
 // Basic in-memory rate limiter for invitations (max 10 per minute per user)
 const inviteRateLimits = new Map();
@@ -36,7 +38,7 @@ router.post('/send', authMiddleware, async (req, res) => {
 
     // Only leader can send invitations
     const leader = group.members.find(m => m.user && m.user.toString() === req.user._id.toString() && m.role === 'leader');
-    if (!leader && req.user.role !== 'admin') {
+    if (!leader && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only the group leader can send invitations' });
     }
 
@@ -56,7 +58,7 @@ router.post('/send', authMiddleware, async (req, res) => {
     if (!invitedUser) return res.status(404).json({ error: 'User not found' });
 
     // RESTRICTION: A group leader (student) can only invite students from the SAME sub-group
-    if (req.user.role !== 'admin' && req.user.role !== 'instructor') {
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'instructor') {
       const isSamePlacement =
         invitedUser.year === group.year &&
         invitedUser.semester === group.semester &&
@@ -112,6 +114,30 @@ router.post('/send', authMiddleware, async (req, res) => {
       .populate('invitedBy', 'name email')
       .populate('invitedUser', 'name email registrationNumber');
 
+    // Send email notification to the invited student (fire-and-forget)
+    sendGroupInvitationEmail(
+      invitedUser.email,
+      invitedUser.name,
+      req.user.name,
+      group.name,
+      group.moduleCode,
+      message || ''
+    ).catch(err => console.error('⚠️ Invitation email failed (non-blocking):', err.message));
+
+    // Send real-time push notification via Pusher (fire-and-forget)
+    createNotification({
+      recipientId: userId,
+      senderId: req.user._id,
+      type: 'invitation_received',
+      title: 'New Group Invitation',
+      message: `${req.user.name} invited you to join "${group.name}" (${group.moduleCode})`,
+      relatedGroup: groupId,
+      relatedInvitation: invitation._id,
+      notifyAdmins: true,
+      adminTitle: '[Admin] Invitation Sent',
+      adminMessage: `${req.user.name} invited ${invitedUser.name} (${invitedUser.registrationNumber}) to join "${group.name}" (${group.moduleCode})`
+    }).catch(err => console.error('⚠️ Notification failed (non-blocking):', err.message));
+
     res.status(201).json({ success: true, invitation: populated });
   } catch (error) {
     console.error('INVITATION SEND ERROR:', error);
@@ -150,7 +176,7 @@ router.get('/sent/:groupId', authMiddleware, async (req, res) => {
     if (!group) return res.status(404).json({ error: 'Group not found' });
 
     const isMember = group.members.some(m => m.user.toString() === req.user._id.toString());
-    if (!isMember && req.user.role !== 'admin' && req.user.role !== 'instructor') {
+    if (!isMember && req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'instructor') {
       return res.status(403).json({ error: 'Access denied. You must be a member of this group.' });
     }
 
@@ -241,6 +267,52 @@ router.put('/:id/accept', authMiddleware, async (req, res) => {
       userToAdd
     );
 
+    // Notify the inviter via email that their invitation was accepted (fire-and-forget)
+    if (!isJoinRequest) {
+      const inviter = await User.findById(invitation.invitedBy).select('name email');
+      if (inviter?.email) {
+        sendInvitationResponseEmail(
+          inviter.email,
+          inviter.name,
+          req.user.name,
+          group.name,
+          group.moduleCode,
+          'accepted'
+        ).catch(err => console.error('⚠️ Accept notification email failed (non-blocking):', err.message));
+      }
+    }
+
+    // Send real-time push notification to the inviter via Pusher
+    // Also notify the user who joined (for join_request flow)
+    if (isJoinRequest) {
+      // Notify the requester that their join request was approved
+      createNotification({
+        recipientId: invitation.invitedBy,
+        senderId: req.user._id,
+        type: 'join_request_accepted',
+        title: 'Join Request Approved!',
+        message: `${req.user.name} approved your request to join "${group.name}" (${group.moduleCode})`,
+        relatedGroup: group._id,
+        relatedInvitation: invitation._id,
+        notifyAdmins: true,
+        adminTitle: '[Admin] Join Request Approved',
+        adminMessage: `${req.user.name} approved ${userToAddName}'s join request for "${group.name}" (${group.moduleCode})`
+      }).catch(err => console.error('⚠️ Notification failed (non-blocking):', err.message));
+    } else {
+      createNotification({
+        recipientId: invitation.invitedBy,
+        senderId: req.user._id,
+        type: 'invitation_accepted',
+        title: 'Invitation Accepted!',
+        message: `${req.user.name} accepted your invitation to join "${group.name}" (${group.moduleCode})`,
+        relatedGroup: group._id,
+        relatedInvitation: invitation._id,
+        notifyAdmins: true,
+        adminTitle: '[Admin] Invitation Accepted',
+        adminMessage: `${req.user.name} accepted invitation and joined "${group.name}" (${group.moduleCode})`
+      }).catch(err => console.error('⚠️ Notification failed (non-blocking):', err.message));
+    }
+
     res.json({
       success: true,
       message: isJoinRequest
@@ -280,6 +352,52 @@ router.put('/:id/decline', authMiddleware, async (req, res) => {
         ? `${req.user.name} declined the join request`
         : `${req.user.name} declined the invitation`
     );
+
+    // Notify the inviter via email that their invitation was declined (fire-and-forget)
+    if (!isJoinRequest) {
+      const inviter = await User.findById(invitation.invitedBy).select('name email');
+      const group = await Group.findById(invitation.group).select('name moduleCode');
+      if (inviter?.email && group) {
+        sendInvitationResponseEmail(
+          inviter.email,
+          inviter.name,
+          req.user.name,
+          group.name,
+          group.moduleCode,
+          'declined'
+        ).catch(err => console.error('⚠️ Decline notification email failed (non-blocking):', err.message));
+      }
+    }
+
+    // Send real-time push notification to the inviter via Pusher
+    if (isJoinRequest) {
+      // Notify the requester that their join request was declined
+      createNotification({
+        recipientId: invitation.invitedBy,
+        senderId: req.user._id,
+        type: 'join_request_declined',
+        title: 'Join Request Declined',
+        message: `${req.user.name} declined your request to join "${group?.name || 'a group'}"`,
+        relatedGroup: invitation.group,
+        relatedInvitation: invitation._id,
+        notifyAdmins: true,
+        adminTitle: '[Admin] Join Request Declined',
+        adminMessage: `${req.user.name} declined a join request for "${group?.name || 'a group'}"`
+      }).catch(err => console.error('⚠️ Notification failed (non-blocking):', err.message));
+    } else {
+      createNotification({
+        recipientId: invitation.invitedBy,
+        senderId: req.user._id,
+        type: 'invitation_declined',
+        title: 'Invitation Declined',
+        message: `${req.user.name} declined your invitation to join "${group?.name || 'a group'}"`,
+        relatedGroup: invitation.group,
+        relatedInvitation: invitation._id,
+        notifyAdmins: true,
+        adminTitle: '[Admin] Invitation Declined',
+        adminMessage: `${req.user.name} declined invitation to "${group?.name || 'a group'}" (${group?.moduleCode || ''})`
+      }).catch(err => console.error('⚠️ Notification failed (non-blocking):', err.message));
+    }
 
     res.json({ success: true, message: 'Invitation declined' });
   } catch (error) {

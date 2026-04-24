@@ -4,6 +4,8 @@ const authMiddleware = require('../../middleware/authMiddleware');
 const Group = require('../../models/Group');
 const ActivityLog = require('../../models/ActivityLog');
 const { findExistingGroupForModule, logActivity } = require('./helpers');
+const { createNotification } = require('../../utils/notificationService');
+const { sendGroupCreatedAdminEmail } = require('../../utils/emailService');
 
 // POST /api/module4/groups - Create a new group
 router.post('/', authMiddleware, async (req, res) => {
@@ -68,6 +70,38 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await logActivity(group._id, req.user._id, 'group_created', `Group "${name}" was created`);
 
+    // ✅ Notify the creator and admins with proper messages
+    await createNotification({
+      recipientId: user._id,
+      senderId: user._id,
+      type: 'group_created',
+      title: 'Group Created',
+      message: `Your group "${name}" for ${moduleCode.toUpperCase()} has been created successfully. You are the group leader!`,
+      relatedGroup: group._id,
+      notifyAdmins: true,
+      adminTitle: '[Admin] New Group Created',
+      adminMessage: `${user.name} (${user.registrationNumber}) created a new group "${name}" for module ${moduleCode.toUpperCase()}.`
+    });
+
+    // 📧 Send email notification to all admins (fire-and-forget)
+    sendGroupCreatedAdminEmail(
+      {
+        name,
+        moduleCode,
+        academicYear,
+        year: groupData.year,
+        semester: groupData.semester,
+        mainGroup: groupData.mainGroup,
+        subGroup: groupData.subGroup,
+      },
+      {
+        name: user.name,
+        email: user.email,
+        registrationNumber: user.registrationNumber,
+        role: user.role,
+      }
+    ).catch(err => console.error('❌ Admin email notification error:', err.message));
+
     const populated = await Group.findById(group._id)
       .populate('members.user', 'name email registrationNumber semester skills')
       .populate('createdBy', 'name email registrationNumber');
@@ -83,7 +117,7 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     let groups;
 
-    if (req.user.role === 'admin') {
+    if (req.user.role === 'admin' || req.user.role === 'super_admin') {
       groups = await Group.find({ status: { $ne: 'archived' } })
         .populate('members.user', 'name email registrationNumber year semester mainGroup subGroup')
         .populate('createdBy', 'name email')
@@ -162,7 +196,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     // Check access: must be a member, instructor, or admin
     const isMember = group.members.some(m => m.user._id.toString() === req.user._id.toString());
-    if (!isMember && req.user.role !== 'admin' && req.user.role !== 'instructor') {
+    if (!isMember && req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'instructor') {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -180,7 +214,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Only leader or admin can update
     const leader = group.members.find(m => m.user.toString() === req.user._id.toString() && m.role === 'leader');
-    if (!leader && req.user.role !== 'admin') {
+    if (!leader && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only the group leader can update group info' });
     }
 
@@ -196,7 +230,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         (req.body.semester && req.body.semester !== group.semester) ||
         (req.body.mainGroup && parseInt(req.body.mainGroup) !== group.mainGroup) ||
         (req.body.subGroup && parseInt(req.body.subGroup) !== group.subGroup);
-      if (placementChanged && req.user.role !== 'admin') {
+      if (placementChanged && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
         return res.status(400).json({ error: 'Academic placement cannot be changed. Contact an admin if this is needed.' });
       }
     }
@@ -209,7 +243,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (status) group.status = status;
 
     // Only admins can change placement (as an override)
-    if (req.user.role === 'admin') {
+    if (req.user.role === 'admin' || req.user.role === 'super_admin') {
       if (req.body.year) group.year = req.body.year;
       if (req.body.semester) group.semester = req.body.semester;
       if (req.body.mainGroup) group.mainGroup = req.body.mainGroup;
@@ -219,6 +253,19 @@ router.put('/:id', authMiddleware, async (req, res) => {
     await group.save();
 
     await logActivity(group._id, req.user._id, 'group_updated', `Group info was updated`);
+
+    // Notify admins that the group was updated
+    await createNotification({
+      recipientId: req.user._id,
+      senderId: req.user._id,
+      type: 'group_created', // re-use group icon
+      title: 'Group Updated',
+      message: `Your group "${group.name}" (${group.moduleCode}) has been updated successfully.`,
+      relatedGroup: group._id,
+      notifyAdmins: true,
+      adminTitle: '[Admin] Group Updated',
+      adminMessage: `${req.user.name} (${req.user.registrationNumber || req.user.role}) updated group "${group.name}" (${group.moduleCode}).`
+    });
 
     const updated = await Group.findById(group._id)
       .populate('members.user', 'name email registrationNumber year semester mainGroup subGroup skills')
@@ -237,7 +284,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!group) return res.status(404).json({ error: 'Group not found' });
 
     // Admin bypass: Admins can delete any group
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       const leader = group.members.find(m => m.user && m.user.toString() === req.user._id.toString() && m.role === 'leader');
       if (!leader) {
         return res.status(403).json({ error: 'Only the group leader or admin can delete a group' });
@@ -247,6 +294,19 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     await Group.findByIdAndUpdate(group._id, { status: 'archived' });
 
     await logActivity(group._id, req.user._id, 'group_deleted', `Group "${group.name}" was archived`);
+
+    // Notify admins that the group was archived
+    await createNotification({
+      recipientId: req.user._id,
+      senderId: req.user._id,
+      type: 'system',
+      title: 'Group Archived',
+      message: `Your group "${group.name}" (${group.moduleCode}) has been archived.`,
+      relatedGroup: group._id,
+      notifyAdmins: true,
+      adminTitle: '[Admin] Group Archived',
+      adminMessage: `${req.user.name} (${req.user.registrationNumber || req.user.role}) archived group "${group.name}" (${group.moduleCode}).`
+    });
 
     res.json({ success: true, message: 'Group archived successfully' });
   } catch (error) {
