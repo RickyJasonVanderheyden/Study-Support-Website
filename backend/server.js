@@ -98,6 +98,17 @@ app.use('/api/module4/activity', require('./routes/MemberFinder/activity'));
 // Chatbot route (Smart AI Assistant)
 app.use('/api/chatbot', require('./routes/chatbot'));
 
+// Notification routes
+app.use('/api/notifications', require('./routes/notifications'));
+
+// Pusher auth (must be separate from notifications path for pusher-js client)
+const notificationRoutes = require('./routes/notifications');
+app.post('/api/pusher/auth', (req, res, next) => {
+  // Forward to the pusher auth handler in notifications router
+  req.url = '/pusher/auth';
+  notificationRoutes(req, res, next);
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({

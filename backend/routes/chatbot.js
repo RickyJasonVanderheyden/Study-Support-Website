@@ -105,7 +105,7 @@ const detectIntent = (message, userRole) => {
   }
 
   // ---- ADMIN-ONLY INTENTS ----
-  if (userRole === 'admin' || userRole === 'instructor') {
+  if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'instructor') {
     if (msg.includes('unassigned') || msg.includes('without group') || msg.includes("don't have") || msg.includes('no group')) {
       return { intent: 'admin_unassigned', moduleCodes };
     }
@@ -167,7 +167,7 @@ const detectIntent = (message, userRole) => {
     /tell\s+me\s+about\s+(\w+)/i
   ];
   // Admin can also look up any student
-  if (userRole === 'admin' || userRole === 'instructor') {
+  if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'instructor') {
     const studentLookup = msg.match(/(?:what|show|find)\s+(?:groups?\s+(?:is|does))?\s*(\w+)\s+(?:in|have|joined)/i);
     if (studentLookup && !excludeWords.includes(studentLookup[1].toLowerCase())) {
       return { intent: 'admin_student_lookup', peerName: studentLookup[1], moduleCodes };
@@ -176,7 +176,7 @@ const detectIntent = (message, userRole) => {
   for (const pattern of peerPatterns) {
     const peerMatch = msg.match(pattern);
     if (peerMatch && peerMatch[1] && !excludeWords.includes(peerMatch[1].toLowerCase())) {
-      return { intent: userRole === 'admin' ? 'admin_student_lookup' : 'peer_check', peerName: peerMatch[1], moduleCodes };
+      return { intent: userRole === 'admin' || userRole === 'super_admin' ? 'admin_student_lookup' : 'peer_check', peerName: peerMatch[1], moduleCodes };
     }
   }
 
@@ -241,7 +241,7 @@ const extractSkills = (message) => {
 
 const gatherContext = async (intent, user) => {
   const context = { intent: intent.intent, data: {} };
-  const isAdmin = user.role === 'admin' || user.role === 'instructor';
+  const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'instructor';
 
   switch (intent.intent) {
 
@@ -660,7 +660,7 @@ const gatherContext = async (intent, user) => {
         .populate('createdBy', 'name');
 
       if (group) {
-        const isAdmin = user.role === 'admin' || user.role === 'instructor';
+        const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'instructor';
         const canSeeDetails = isAdmin || (
           group.year === user.year &&
           group.semester === user.semester &&
@@ -945,7 +945,7 @@ router.post('/execute', authMiddleware, async (req, res) => {
 // ==========================================
 
 const generateSuggestions = (intent, context, role) => {
-  const isAdmin = role === 'admin' || role === 'instructor';
+  const isAdmin = role === 'admin' || role === 'super_admin' || role === 'instructor';
 
   if (isAdmin) {
     switch (intent.intent) {
