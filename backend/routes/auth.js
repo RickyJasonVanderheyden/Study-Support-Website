@@ -18,7 +18,7 @@ const isAdminEmail = (value) => {
     .includes(normalized);
 };
 
-router.post('/pre-register', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+router.post('/pre-register', authMiddleware, roleMiddleware(['admin', 'super_admin']), async (req, res) => {
   try {
     const { email, registrationNumber, role, name, password, year, semester, mainGroup, subGroup } = req.body;
 
@@ -260,7 +260,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
 });
 
 // 5. Get All Users (Admin Only)
-router.get('/', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+router.get('/', authMiddleware, roleMiddleware(['admin', 'super_admin']), async (req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 });
     res.json({ success: true, users });
@@ -270,7 +270,7 @@ router.get('/', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
 });
 
 // 6. Delete User (Admin Only)
-router.delete('/:id', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+router.delete('/:id', authMiddleware, roleMiddleware(['admin', 'super_admin']), async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'User removed successfully' });
@@ -280,7 +280,7 @@ router.delete('/:id', authMiddleware, roleMiddleware(['admin']), async (req, res
 });
 
 // 6.1 Update User (Admin Only)
-router.put('/:id', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+router.put('/:id', authMiddleware, roleMiddleware(['admin', 'super_admin']), async (req, res) => {
   try {
     const { name, email, registrationNumber, year, semester, mainGroup, subGroup, role } = req.body;
     const user = await User.findById(req.params.id);
