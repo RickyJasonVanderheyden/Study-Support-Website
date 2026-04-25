@@ -102,22 +102,22 @@ const FindMembersSection = ({ groups = [] }) => {
     return (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-8">
             {/* Header */}
-            <div className={`px-6 py-5 border-b border-gray-100 bg-gradient-to-r ${isAdmin ? 'from-amber-50 to-orange-50' : 'from-indigo-50 to-purple-50'}`}>
+            <div className={`px-6 py-5 border-b border-gray-100 bg-gradient-to-r ${isAdmin ? 'from-amber-50 to-orange-50' : 'from-emerald-50 to-teal-50'}`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg ${isAdmin ? 'bg-amber-600' : 'bg-indigo-600'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg ${isAdmin ? 'bg-amber-600' : 'bg-emerald-600'}`}>
                             <Users size={20} />
                         </div>
                         <div className="text-left">
                             <h2 className="font-bold text-gray-900 text-lg">Find Group Members</h2>
-                            {isAdmin ? (
+                             {isAdmin ? (
                                 <p className="text-xs text-gray-500">
                                     <span className="font-bold text-amber-600">🛡️ Admin View</span>
                                     <span className="text-gray-400 ml-1">— Showing all students across all sub-groups</span>
                                 </p>
                             ) : hasPlacement ? (
                                 <p className="text-xs text-gray-500">
-                                    Your class: <span className="font-bold text-indigo-600">{placement.year} · {placement.semester} · MG{String(placement.mainGroup).padStart(2, '0')} · SG{placement.subGroup}</span>
+                                    Your class: <span className="font-bold text-emerald-600">{placement.year} · {placement.semester} · MG{String(placement.mainGroup).padStart(2, '0')} · SG{placement.subGroup}</span>
                                     <span className="text-gray-400 ml-1">— Showing classmates from your sub-group</span>
                                 </p>
                             ) : (
@@ -125,7 +125,7 @@ const FindMembersSection = ({ groups = [] }) => {
                             )}
                         </div>
                     </div>
-                    <span className="text-xs bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-bold">
+                    <span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-bold">
                         {members.length} student{members.length !== 1 ? 's' : ''} found
                     </span>
                 </div>
@@ -140,7 +140,7 @@ const FindMembersSection = ({ groups = [] }) => {
                         placeholder="Search by name, email, or IT number..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                     />
                 </div>
             </div>
@@ -159,7 +159,7 @@ const FindMembersSection = ({ groups = [] }) => {
             {/* Member Cards */}
             {loading ? (
                 <div className="p-12 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-3"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-3"></div>
                     <p className="text-sm text-gray-400">Searching students...</p>
                 </div>
             ) : members.length > 0 ? (
@@ -167,10 +167,10 @@ const FindMembersSection = ({ groups = [] }) => {
                     {members.map(member => (
                         <div
                             key={member._id}
-                            className="bg-gray-50 rounded-xl border border-gray-100 p-4 hover:shadow-md hover:border-indigo-200 transition-all group"
+                            className="bg-gray-50 rounded-xl border border-gray-100 p-4 hover:shadow-md hover:border-emerald-200 transition-all group"
                         >
                             <div className="flex items-start gap-3">
-                                <div className="w-11 h-11 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md">
+                                <div className="w-11 h-11 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md">
                                     {member.name?.charAt(0).toUpperCase() || '?'}
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
@@ -183,7 +183,7 @@ const FindMembersSection = ({ groups = [] }) => {
                                             </span>
                                         )}
                                         {formatPlacement(member) && (
-                                            <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">
+                                            <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">
                                                 {formatPlacement(member)}
                                             </span>
                                         )}
@@ -211,7 +211,7 @@ const FindMembersSection = ({ groups = [] }) => {
                             {member.skills && member.skills.length > 0 && (
                                 <div className="mt-2 flex flex-wrap gap-1">
                                     {member.skills.slice(0, 4).map((skill, i) => (
-                                        <span key={i} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
+                                        <span key={i} className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-medium">
                                             {skill}
                                         </span>
                                     ))}
@@ -230,7 +230,7 @@ const FindMembersSection = ({ groups = [] }) => {
                             {groups.length > 0 && (
                                 <button
                                     onClick={() => setInviteModalUser(member)}
-                                    className="mt-3 w-full flex items-center justify-center gap-1.5 bg-indigo-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-indigo-700 transition-all opacity-80 group-hover:opacity-100"
+                                    className="mt-3 w-full flex items-center justify-center gap-1.5 bg-emerald-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-emerald-700 transition-all opacity-80 group-hover:opacity-100"
                                 >
                                     <Send size={12} />
                                     Invite to Group
@@ -264,7 +264,7 @@ const FindMembersSection = ({ groups = [] }) => {
                             Send a group invitation to <strong>{inviteModalUser.email}</strong>
                         </p>
                         {formatPlacement(inviteModalUser) && (
-                            <p className="text-xs text-indigo-600 font-bold mb-2">
+                            <p className="text-xs text-emerald-600 font-bold mb-2">
                                 {formatPlacement(inviteModalUser)}
                             </p>
                         )}
@@ -295,7 +295,7 @@ const FindMembersSection = ({ groups = [] }) => {
                                 <select
                                     value={selectedGroup}
                                     onChange={(e) => setSelectedGroup(e.target.value)}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                                 >
                                     <option value="">Choose a group...</option>
                                     {groups
@@ -344,7 +344,7 @@ const FindMembersSection = ({ groups = [] }) => {
                                     value={inviteMessage}
                                     onChange={(e) => setInviteMessage(e.target.value)}
                                     placeholder="Hey! Would you like to join our study group?"
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-20"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none h-20"
                                 />
                             </div>
 
@@ -360,7 +360,7 @@ const FindMembersSection = ({ groups = [] }) => {
                                     disabled={!selectedGroup || !!getMemberConflict(inviteModalUser) || sending}
                                     className={`flex-1 py-2 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1.5 ${!selectedGroup || getMemberConflict(inviteModalUser) || sending
                                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
                                         }`}
                                 >
                                     <Send size={14} className={sending ? 'animate-spin' : ''} />
@@ -376,3 +376,4 @@ const FindMembersSection = ({ groups = [] }) => {
 };
 
 export default FindMembersSection;
+

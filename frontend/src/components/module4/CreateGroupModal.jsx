@@ -136,7 +136,7 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Team Name (Group Name) *</label>
                         <input
                             {...register('name', { required: 'Team name is required', minLength: { value: 3, message: 'Min 3 characters' } })}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                             placeholder="e.g., SE3040 - Team Alpha"
                             disabled={!hasPlacement}
                         />
@@ -148,7 +148,7 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">Module Code *</label>
                             <input
                                 {...register('moduleCode', { required: 'Module code is required' })}
-                                className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none uppercase ${
+                                className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none uppercase ${
                                     moduleConflict ? 'border-red-400 bg-red-50' : 'border-gray-300'
                                 }`}
                                 placeholder="SE3040"
@@ -157,7 +157,7 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
                             {errors.moduleCode && <span className="text-red-500 text-xs mt-1">{errors.moduleCode.message}</span>}
                             {checkingModule && (
                                 <span className="text-gray-400 text-xs mt-1 flex items-center gap-1">
-                                    <span className="animate-spin inline-block w-3 h-3 border border-gray-300 border-t-indigo-500 rounded-full"></span>
+                                    <span className="animate-spin inline-block w-3 h-3 border border-gray-300 border-t-emerald-500 rounded-full"></span>
                                     Checking...
                                 </span>
                             )}
@@ -186,10 +186,10 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
                         </div>
                     )}
 
-                    <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100 text-left">
-                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Class Scope</p>
+                    <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100 text-left">
+                        <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Class Scope</p>
                         <div className="flex items-center justify-between">
-                            <p className="text-sm font-bold text-indigo-900">
+                            <p className="text-sm font-bold text-emerald-900">
                                 {isAdmin
                                     ? 'All Sub-Groups (Admin)'
                                     : hasPlacement
@@ -197,9 +197,9 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
                                         : 'Placement Not Assigned'
                                 }
                             </p>
-                            <p className="text-[10px] text-indigo-500 italic">{isAdmin ? 'Admin override' : 'Auto-assigned'}</p>
+                            <p className="text-[10px] text-emerald-500 italic">{isAdmin ? 'Admin override' : 'Auto-assigned'}</p>
                         </div>
-                        <p className="text-[10px] text-indigo-400 mt-2">
+                        <p className="text-[10px] text-emerald-400 mt-2">
                             {isAdmin ? 'Admin groups are visible to all students.' : 'This group will only be visible to students in your sub-group.'}
                         </p>
                     </div>
@@ -208,7 +208,7 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Team Description</label>
                         <textarea
                             {...register('description')}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
                             rows="2"
                             placeholder="Briefly describe your team goals..."
                             disabled={!hasPlacement}
@@ -219,7 +219,7 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Project Focus (Tags)</label>
                         <input
                             {...register('tags')}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                             placeholder="e.g. react, node, ai (comma separated)"
                             disabled={!hasPlacement}
                         />
@@ -238,3 +238,4 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
 };
 
 export default CreateGroupModal;
+
