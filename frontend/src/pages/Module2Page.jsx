@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   ArrowLeft,
   FileText,
@@ -31,7 +31,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import BookLoader from '../components/common/BookLoader';
-import SiteHeader from '../components/layout/SiteHeader';
+
 import SiteFooter from '../components/layout/SiteFooter';
 import module2BackgroundVideo from '../components/quizpdfs/63328-506377472_medium.mp4';
 
@@ -565,7 +565,7 @@ const Module2Page = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <SiteHeader />
+
       <div className="module2-ocean relative flex-1 flex flex-col" style={{ fontFamily: "'DM Sans', 'Segoe UI', Arial, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap');
