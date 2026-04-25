@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
-import SiteHeader from '../components/layout/SiteHeader';
+
 import SiteFooter from '../components/layout/SiteFooter';
 import Card from '../components/common/Card';
 
@@ -159,7 +159,7 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E8F5E9] via-[#F7F4EE] to-[#EDE8DF] flex flex-col">
-      <SiteHeader />
+
       <main className="flex-1">
 
         {/* Hero Banner */}

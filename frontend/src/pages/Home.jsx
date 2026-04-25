@@ -5,7 +5,7 @@ import {
   ChevronRight, TrendingUp, UserCheck, Sparkles
 } from 'lucide-react';
 import { getMyGroups, getReceivedInvitations } from '../services/module4Api';
-import SiteHeader from '../components/layout/SiteHeader';
+
 import SiteFooter from '../components/layout/SiteFooter';
 
 const Home = () => {
@@ -72,7 +72,7 @@ const Home = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#EAF4ED] via-[#F7F4EE] to-[#FDFCF9]">
-            <SiteHeader />
+
             <main className="flex-1">
                 <div className="p-8 space-y-8 max-w-7xl mx-auto">
                     {/* Header Section */}
