@@ -34,7 +34,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1)',

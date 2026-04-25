@@ -6,14 +6,16 @@ const navItems = [
   { label: 'AI Tools', to: '/module2', icon: Bot },
   { label: 'Peer Sessions', to: '/module3', icon: Users },
   { label: 'Member Search', to: '/module4', icon: Search },
-  { label: 'Dashboard', to: '/module1', icon: LayoutDashboard },
+  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
 ];
 
 const SiteHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) =>
+    location.pathname === path ||
+    (path === '/dashboard' && (location.pathname === '/module1' || location.pathname === '/subject-categories'));
 
   const handleLogout = () => {
     localStorage.removeItem('token');

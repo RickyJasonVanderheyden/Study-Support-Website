@@ -34,6 +34,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  profileImageUrl: {
+    type: String,
+    default: null
+  },
   roleRequest: {
     type: String,
     enum: ['none', 'pending_session_lead', 'rejected'],

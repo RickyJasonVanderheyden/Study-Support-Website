@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BadgeCheck, BookOpen, CalendarDays, Mail, ShieldCheck, Users, Target, Flame, TrendingUp, FileText } from 'lucide-react';
+import { BadgeCheck, BookOpen, CalendarDays, Users, Target, Flame, TrendingUp, FileText, Camera, Save, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import SiteHeader from '../components/layout/SiteHeader';
@@ -22,28 +22,72 @@ const Profile = () => {
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState(emptyStats);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', mobileNumber: '', groupNumber: '' });
+  const [profileImageFile, setProfileImageFile] = useState(null);
+  const hasLoadedRef = useRef(false);
+
+  const imageBaseUrl = useMemo(() => {
+    const base = api.defaults.baseURL || 'http://localhost:5000/api';
+    return base.replace(/\/api\/?$/, '');
+  }, []);
+
+  const profileImageSrc = useMemo(() => {
+    if (!user?.profileImageUrl) return null;
+    if (/^https?:\/\//i.test(user.profileImageUrl)) return user.profileImageUrl;
+    return `${imageBaseUrl}${user.profileImageUrl}`;
+  }, [user, imageBaseUrl]);
 
   useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
     const token = localStorage.getItem('token');
-    const rawUser = localStorage.getItem('user');
 
-    if (!token || !rawUser) {
+    if (!token) {
       navigate('/login');
       return;
     }
 
-    try {
-      const parsed = JSON.parse(rawUser);
-      setUser(parsed);
-    } catch (_error) {
-      navigate('/login');
-      return;
-    }
-
-    const loadStats = async () => {
+    const loadProfileAndStats = async () => {
       try {
-        const response = await api.get('/module2/progress');
-        const progress = response.data?.progress || {};
+        const [profileResponse, progressResponse] = await Promise.allSettled([
+          api.get('/auth/me'),
+          api.get('/module2/progress'),
+        ]);
+
+        if (profileResponse.status !== 'fulfilled') {
+          const status = profileResponse.reason?.response?.status;
+          if (status === 401) {
+            toast.error('Please log in again');
+            navigate('/login');
+            return;
+          }
+          const profileError =
+            profileResponse.reason?.response?.data?.error ||
+            profileResponse.reason?.message ||
+            'Unable to load profile details';
+          toast.error(profileError);
+          return;
+        }
+
+        const profile = profileResponse.value?.data?.user || null;
+        const progress =
+          progressResponse.status === 'fulfilled'
+            ? (progressResponse.value?.data?.progress || {})
+            : {};
+
+        setUser(profile);
+        setProfileForm({
+          name: profile?.name || '',
+          mobileNumber: profile?.mobileNumber || '',
+          groupNumber: profile?.groupNumber || '',
+        });
+
+        if (profile) {
+          localStorage.setItem('user', JSON.stringify(profile));
+        }
+
         setStats({
           ...emptyStats,
           totalQuizzes: progress.totalQuizzes || 0,
@@ -54,20 +98,72 @@ const Profile = () => {
           totalMindMaps: progress.totalMindMaps || 0,
           totalAudioNotes: progress.totalAudioNotes || 0,
         });
+
+        if (progressResponse.status !== 'fulfilled') {
+          const statsError =
+            progressResponse.reason?.response?.data?.error ||
+            progressResponse.reason?.message ||
+            'Unable to load activity stats';
+          toast.error(statsError);
+        }
       } catch (error) {
+        console.error('Profile load error:', error);
         if (error?.response?.status === 401) {
           toast.error('Please log in again');
           navigate('/login');
           return;
         }
-        toast.error('Unable to load profile stats');
+        const errorMsg = error?.response?.data?.error || error?.message || 'Unable to load profile details';
+        toast.error(errorMsg);
       } finally {
         setLoading(false);
       }
     };
 
-    loadStats();
+    loadProfileAndStats();
   }, [navigate]);
+
+  const handleProfileSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', profileForm.name.trim());
+      formData.append('mobileNumber', profileForm.mobileNumber.trim());
+      formData.append('groupNumber', profileForm.groupNumber.trim());
+      if (profileImageFile) {
+        formData.append('profileImage', profileImageFile);
+      }
+
+      const response = await api.put('/auth/profile', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const updatedUser = response.data?.user;
+      setUser(updatedUser);
+      setProfileImageFile(null);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onImagePicked = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be smaller than 2 MB');
+      return;
+    }
+    setProfileImageFile(file);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -160,9 +256,17 @@ const Profile = () => {
               <Card className="border border-white/10 bg-white/10 p-0 text-white shadow-none backdrop-blur-md">
                 <div className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-[#1E4D35] shadow-lg">
-                      <BadgeCheck className="h-8 w-8" />
-                    </div>
+                    {profileImageSrc ? (
+                      <img
+                        src={profileImageSrc}
+                        alt="Student profile"
+                        className="h-16 w-16 rounded-2xl object-cover bg-white shadow-lg"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-[#1E4D35] shadow-lg">
+                        <BadgeCheck className="h-8 w-8" />
+                      </div>
+                    )}
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#D6ECD8]">Profile status</p>
                       <h2 className="text-2xl font-black">Active learner</h2>
@@ -182,6 +286,68 @@ const Profile = () => {
               </Card>
             </div>
           </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
+          <Card title="Edit Student Profile" className="border border-[#D8E8DC] bg-white shadow-sm">
+            <form onSubmit={handleProfileSave} className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[#3D5246]">Full Name</label>
+                <input
+                  className="w-full rounded-lg border border-[#D8E8DC] bg-[#FFFDF8] px-3 py-2 text-sm"
+                  value={profileForm.name}
+                  onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[#3D5246]">Mobile Number</label>
+                <input
+                  className="w-full rounded-lg border border-[#D8E8DC] bg-[#FFFDF8] px-3 py-2 text-sm"
+                  value={profileForm.mobileNumber}
+                  onChange={(e) => setProfileForm((prev) => ({ ...prev, mobileNumber: e.target.value }))}
+                  placeholder="+94712345678"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[#3D5246]">Group Number</label>
+                <input
+                  className="w-full rounded-lg border border-[#D8E8DC] bg-[#FFFDF8] px-3 py-2 text-sm"
+                  value={profileForm.groupNumber}
+                  onChange={(e) => setProfileForm((prev) => ({ ...prev, groupNumber: e.target.value }))}
+                  placeholder="e.g. Y1S2-G4"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[#3D5246]">Registration Number</label>
+                <input
+                  className="w-full rounded-lg border border-[#D8E8DC] bg-[#F7F4EE] px-3 py-2 text-sm text-[#7A9080]"
+                  value={user.registrationNumber || ''}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-semibold text-[#3D5246]">Profile Image</label>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#D8E8DC] bg-[#FFFDF8] px-4 py-2 text-sm font-semibold text-[#1E4D35]">
+                  <Camera className="h-4 w-4" />
+                  Choose Image
+                  <input type="file" accept="image/*" className="hidden" onChange={onImagePicked} />
+                </label>
+                {profileImageFile && <p className="text-xs text-[#7A9080]">Selected: {profileImageFile.name}</p>}
+              </div>
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#1E4D35] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#2E5C42] disabled:opacity-60"
+                >
+                  <Save className="h-4 w-4" />
+                  {saving ? 'Saving...' : 'Save Profile'}
+                </button>
+              </div>
+            </form>
+          </Card>
         </section>
 
         <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">

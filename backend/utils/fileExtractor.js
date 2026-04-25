@@ -2,7 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
-const { getTextExtractor } = require('office-text-extractor');
+
+let officeTextExtractorModulePromise;
+
+async function loadOfficeTextExtractor() {
+  if (!officeTextExtractorModulePromise) {
+    officeTextExtractorModulePromise = import('office-text-extractor');
+  }
+
+  return officeTextExtractorModulePromise;
+}
 
 /**
  * Extract text from a PDF file
@@ -78,6 +87,7 @@ async function extractTextFromTXT(filePath) {
  */
 async function extractTextFromPPTX(filePath) {
   try {
+    const { getTextExtractor } = await loadOfficeTextExtractor();
     const extractor = getTextExtractor();
     const text = await extractor.extractText({ input: filePath, type: 'file' });
     

@@ -1,7 +1,34 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const User = require('../models/User');
+const authMiddleware = require('../middleware/authMiddleware');
+
+const profileUploadDir = path.join(__dirname, '..', 'uploads', 'profile');
+fs.mkdirSync(profileUploadDir, { recursive: true });
+
+const profileStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, profileUploadDir),
+  filename: (req, file, cb) => {
+    const safeExt = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+    cb(null, `user-${req.user?._id || 'unknown'}-${Date.now()}${safeExt}`);
+  },
+});
+
+const profileUpload = multer({
+  storage: profileStorage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+      cb(new Error('Only image uploads are allowed'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 const isSliitEmail = (value) => /^it\d{8}@my\.sliit\.lk$/i.test(String(value || '').trim());
 const isAdminEmail = (value) => {
@@ -81,6 +108,10 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         registrationNumber: user.registrationNumber,
+        mobileNumber: user.mobileNumber,
+        groupNumber: user.groupNumber,
+        profileImageUrl: user.profileImageUrl,
+        createdAt: user.createdAt,
         role: user.role,
         roleRequest: user.roleRequest
       }
@@ -138,12 +169,78 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         registrationNumber: user.registrationNumber,
+        mobileNumber: user.mobileNumber,
+        groupNumber: user.groupNumber,
+        profileImageUrl: user.profileImageUrl,
+        createdAt: user.createdAt,
         role: user.role,
         roleRequest: user.roleRequest
       }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Get current profile
+router.get('/me', authMiddleware, async (req, res) => {
+  res.json({
+    user: {
+      id: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      registrationNumber: req.user.registrationNumber,
+      mobileNumber: req.user.mobileNumber,
+      groupNumber: req.user.groupNumber,
+      profileImageUrl: req.user.profileImageUrl,
+      role: req.user.role,
+      roleRequest: req.user.roleRequest,
+      createdAt: req.user.createdAt,
+    },
+  });
+});
+
+// Update current profile (name, mobile number, group number, profile image)
+router.put('/profile', authMiddleware, profileUpload.single('profileImage'), async (req, res) => {
+  try {
+    const updates = {};
+
+    if (typeof req.body.name === 'string' && req.body.name.trim()) {
+      updates.name = req.body.name.trim();
+    }
+    if (typeof req.body.mobileNumber === 'string' && req.body.mobileNumber.trim()) {
+      updates.mobileNumber = req.body.mobileNumber.trim();
+    }
+    if (typeof req.body.groupNumber === 'string') {
+      updates.groupNumber = req.body.groupNumber.trim() || null;
+    }
+
+    if (req.file) {
+      updates.profileImageUrl = `/uploads/profile/${req.file.filename}`;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, updates, {
+      new: true,
+      runValidators: true,
+    }).select('-password');
+
+    res.json({
+      success: true,
+      user: {
+        id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        registrationNumber: updatedUser.registrationNumber,
+        mobileNumber: updatedUser.mobileNumber,
+        groupNumber: updatedUser.groupNumber,
+        profileImageUrl: updatedUser.profileImageUrl,
+        role: updatedUser.role,
+        roleRequest: updatedUser.roleRequest,
+        createdAt: updatedUser.createdAt,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 

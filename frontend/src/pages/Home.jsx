@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Users, Search, LayoutDashboard, UserCircle2 } from 'lucide-react';
+import { BookOpen, Users, Search, LayoutDashboard } from 'lucide-react';
 import SiteHeader from '../components/layout/SiteHeader';
 import SiteFooter from '../components/layout/SiteFooter';
 
@@ -51,6 +51,12 @@ const Home = () => {
               <p className="max-w-2xl text-base leading-7 text-[#3D5246]">
                 Select a study tool to get started.
               </p>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="mt-4 inline-flex items-center rounded-xl bg-[#1E5E3A] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#184f31]"
+              >
+                Open Dashboard
+              </button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-10">
@@ -58,7 +64,7 @@ const Home = () => {
                 { title: 'AI Tools', description: 'Generate quizzes, flashcards, mind maps, and audio notes', to: '/module2', icon: BookOpen, accent: 'from-[#E8820C] to-[#C96800]' },
                 { title: 'Peer Sessions', description: 'Join collaborative study sessions with classmates', to: '/module3', icon: Users, accent: 'from-[#1E4D35] to-[#2E5C42]' },
                 { title: 'Member Search', description: 'Find people and groups in your learning community', to: '/module4', icon: Search, accent: 'from-[#556B2F] to-[#3A7055]' },
-                { title: 'Dashboard', description: 'Track your study progress and learning momentum', to: '/module1', icon: LayoutDashboard, accent: 'from-[#275E41] to-[#1E4D35]' },
+                { title: 'Dashboard', description: 'Track your study progress and learning momentum', to: '/dashboard', icon: LayoutDashboard, accent: 'from-[#275E41] to-[#1E4D35]' },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
