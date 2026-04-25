@@ -7,7 +7,7 @@ import GroupCard from '../components/module4/GroupCard';
 import CreateGroupModal from '../components/module4/CreateGroupModal';
 import FindMembersSection from '../components/module4/FindMembersSection';
 import { getMyGroups, getReceivedInvitations, acceptInvitation, declineInvitation } from '../services/module4Api';
-import SiteHeader from '../components/layout/SiteHeader';
+
 import SiteFooter from '../components/layout/SiteFooter';
 
 const Module4Page = () => {
@@ -75,15 +75,15 @@ const Module4Page = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#E8F5E9] via-[#F7F4EE] to-[#FDFCF9]">
-      <SiteHeader />
+
       <main className="flex-1">
         <div className="p-8 max-w-7xl mx-auto">
           {/* Pending Invitations Banner */}
           {invitations.length > 0 && (
-            <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-5 mb-8 text-left">
+            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-5 mb-8 text-left">
               <div className="flex items-center gap-2 mb-3">
-                <Bell size={18} className="text-indigo-600" />
-                <h3 className="font-bold text-indigo-800">
+                <Bell size={18} className="text-emerald-600" />
+                <h3 className="font-bold text-emerald-800">
                   You have {invitations.length} pending invitation{invitations.length > 1 ? 's' : ''}
                 </h3>
               </div>
@@ -147,7 +147,7 @@ const Module4Page = () => {
           {/* Groups Grid */}
           {loading ? (
             <div className="text-center text-gray-400 py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
               <p className="text-lg">Loading your groups...</p>
             </div>
           ) : groups.length > 0 ? (
@@ -158,8 +158,8 @@ const Module4Page = () => {
             </div>
           ) : (
             <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
-              <div className="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-left">
-                <Search size={32} className="text-indigo-400" />
+              <div className="bg-emerald-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-left">
+                <Search size={32} className="text-emerald-400" />
               </div>
               <h3 className="text-xl font-bold text-gray-700 mb-2">No groups yet</h3>
               <p className="text-gray-500 mb-6">Create your first study group to get started!</p>
@@ -183,3 +183,4 @@ const Module4Page = () => {
 };
 
 export default Module4Page;
+
