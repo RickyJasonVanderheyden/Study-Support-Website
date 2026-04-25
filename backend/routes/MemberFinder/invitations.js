@@ -353,10 +353,10 @@ router.put('/:id/decline', authMiddleware, async (req, res) => {
         : `${req.user.name} declined the invitation`
     );
 
+    const group = await Group.findById(invitation.group).select('name moduleCode');
     // Notify the inviter via email that their invitation was declined (fire-and-forget)
     if (!isJoinRequest) {
       const inviter = await User.findById(invitation.invitedBy).select('name email');
-      const group = await Group.findById(invitation.group).select('name moduleCode');
       if (inviter?.email && group) {
         sendInvitationResponseEmail(
           inviter.email,
@@ -406,3 +406,4 @@ router.put('/:id/decline', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
