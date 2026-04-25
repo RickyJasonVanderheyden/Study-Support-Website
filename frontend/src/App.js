@@ -13,6 +13,11 @@ import Module2Page from './pages/Module2Page';
 import Module3Page from './pages/Module3Page';
 import Module3SessionDetailsPage from './pages/Module3SessionDetailsPage';
 import Module4Page from './pages/Module4Page';
+import QuizTake from './components/quizpdfs/QuizTake';
+import QuizResults from './components/quizpdfs/QuizResults';
+import FlashcardStudy from './components/quizpdfs/FlashcardStudy';
+import MindMapView from './components/quizpdfs/MindMapView';
+import AudioNotesView from './components/quizpdfs/AudioNotesView';
 
 const ROUTES_NO_SESSION_LEAD_GATE = new Set([
   '/login',
@@ -67,6 +72,11 @@ function App() {
           <Route path="/pending-approval" element={<PendingApproval />} />
           <Route path="/module1" element={<Module1Page />} />
           <Route path="/module2" element={<Module2Page />} />
+          <Route path="/module2/quiz/:id" element={<QuizTake />} />
+          <Route path="/module2/quiz/:id/results" element={<QuizResults />} />
+          <Route path="/module2/flashcards/:id" element={<FlashcardStudy />} />
+          <Route path="/module2/mindmaps/:id" element={<MindMapView />} />
+          <Route path="/module2/audio/:id" element={<AudioNotesView />} />
           <Route path="/module3" element={<Module3Page />} />
           <Route path="/module3/session/:id" element={<Module3SessionDetailsPage />} />
           <Route path="/module4" element={<Module4Page />} />

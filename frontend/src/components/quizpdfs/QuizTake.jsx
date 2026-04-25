@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../../services/api';
+import ToolTour from './ToolTour';
 
 const QuizTake = () => {
   const { id: quizId } = useParams();
@@ -17,6 +18,52 @@ const QuizTake = () => {
   const [submitting, setSubmitting] = useState(false);
   const [startTime] = useState(Date.now());
   const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
+  const [showTour, setShowTour] = useState(false);
+
+  const quizTourSteps = [
+    {
+      selector: '.quiz-timer',
+      title: 'Time Limit',
+      description: 'Keep track of remaining time. Answer all questions before time runs out!',
+      position: 'bottom',
+      arrowColor: '#E8820C'
+    },
+    {
+      selector: '.quiz-question-text',
+      title: 'Read the Question',
+      description: 'Each question tests your understanding. Read carefully before selecting an answer.',
+      position: 'bottom',
+      arrowColor: '#1E4D35'
+    },
+    {
+      selector: '.quiz-answer-options',
+      title: 'Select Your Answer',
+      description: 'Click on the option you think is correct. You can change your answer anytime.',
+      position: 'top',
+      arrowColor: '#C96800'
+    },
+    {
+      selector: '.quiz-flag-btn',
+      title: 'Flag for Review',
+      description: 'Unsure about a question? Flag it to review later before submitting.',
+      position: 'bottom',
+      arrowColor: '#E8820C'
+    },
+    {
+      selector: '.quiz-navigation',
+      title: 'Navigate Between Questions',
+      description: 'Use previous/next buttons to move between questions or jump to specific ones.',
+      position: 'top',
+      arrowColor: '#275E41'
+    },
+    {
+      selector: '.quiz-submit-btn',
+      title: 'Submit Your Quiz',
+      description: 'When ready, click Submit to check your answers and see your score!',
+      position: 'top',
+      arrowColor: '#1E4D35'
+    }
+  ];
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -36,7 +83,7 @@ const QuizTake = () => {
   }, [quizId, navigate]);
 
   useEffect(() => {
-    if (!quiz || timeLeft <= 0) return;
+    if (!quiz || timeLeft <= 0 || showTour) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -48,7 +95,7 @@ const QuizTake = () => {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [quiz]);
+  }, [quiz, showTour]);
 
   const handleSubmit = useCallback(async (isTimeUp = false) => {
     if (submitting) return;
@@ -123,6 +170,20 @@ const QuizTake = () => {
             </nav>
             
             <div className="flex items-center gap-3">
+              <button 
+                onClick={() => navigate('/module2')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:text-[#C96800] hover:bg-[#FFF0DC] transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back to Library</span>
+              </button>
+              <button 
+                onClick={() => setShowTour(true)}
+                className="p-2 text-gray-400 hover:text-[#1E4D35] hover:bg-[#D6ECD8] rounded-lg transition-colors"
+                title="Take the quiz tour"
+              >
+                <Sparkles className="w-5 h-5" />
+              </button>
               <button className="p-2 text-gray-400 hover:text-[#C96800] hover:bg-[#FFF0DC] rounded-lg transition-colors">
                 <Settings className="w-5 h-5" />
               </button>
@@ -147,9 +208,9 @@ const QuizTake = () => {
               </div>
               
               {/* Reduced font size for the question */}
-              <h2 className="text-xl font-bold text-gray-900 mb-8 leading-relaxed">{currentQ.question}</h2>
+              <h2 className="quiz-question-text text-xl font-bold text-gray-900 mb-8 leading-relaxed">{currentQ.question}</h2>
               
-              <div className="grid gap-3">
+              <div className="quiz-answer-options grid gap-3">
                 {currentQ.options.map((option, index) => {
                   const isSelected = answers[currentQuestion] === index;
                   return (
@@ -174,7 +235,7 @@ const QuizTake = () => {
               </div>
             </div>
 
-            <div className="px-8 py-5 bg-[#F7F4EE]/50 border-t border-[#E8DECE] flex items-center justify-between">
+            <div className="quiz-navigation px-8 py-5 bg-[#F7F4EE]/50 border-t border-[#E8DECE] flex items-center justify-between">
               <button
                 onClick={() => setCurrentQuestion(prev => Math.max(0, prev - 1))}
                 disabled={currentQuestion === 0}
@@ -199,7 +260,7 @@ const QuizTake = () => {
           <div className="bg-white rounded-3xl shadow-lg border border-[#D8E8DC] p-6 sticky top-24">
             
             {/* Timer - Reduced Font Size */}
-            <div className={`flex items-center justify-center gap-2 py-3 mb-5 rounded-2xl border-2 ${
+            <div className={`quiz-timer flex items-center justify-center gap-2 py-3 mb-5 rounded-2xl border-2 ${
               timeLeft < 60 ? 'bg-rose-50 border-rose-200 text-rose-600 animate-pulse' : 'bg-[#FFF0DC] border-[#E8820C] text-[#C96800]'
             }`}>
               <Clock className="w-5 h-5" />
@@ -209,7 +270,7 @@ const QuizTake = () => {
             {/* Flag Button */}
             <button
               onClick={toggleFlag}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 mb-6 rounded-xl text-sm font-bold border-2 transition-all ${
+              className={`quiz-flag-btn w-full flex items-center justify-center gap-2 py-2.5 mb-6 rounded-xl text-sm font-bold border-2 transition-all ${
                 flaggedQuestions.has(currentQuestion) ? 'bg-[#E8820C] border-[#C96800] text-white' : 'bg-white border-[#D8E8DC] text-[#3D5246] hover:bg-gray-50'
               }`}
             >
@@ -243,7 +304,7 @@ const QuizTake = () => {
             <button
               onClick={() => handleSubmit(false)}
               disabled={submitting}
-              className="w-full py-3 bg-[#1E4D35] text-sm text-white rounded-xl font-black hover:bg-[#2E5C42] hover:shadow-lg transition-all"
+              className="quiz-submit-btn w-full py-3 bg-[#1E4D35] text-sm text-white rounded-xl font-black hover:bg-[#2E5C42] hover:shadow-lg transition-all"
             >
               {submitting ? 'Submitting...' : 'Submit Quiz'}
             </button>
@@ -252,6 +313,15 @@ const QuizTake = () => {
         </div>
 
       </main>
+
+      {/* Tour Modal */}
+      {showTour && (
+        <ToolTour
+          steps={quizTourSteps}
+          toolName="quiz"
+          onClose={() => setShowTour(false)}
+        />
+      )}
     </div>
   );
 };
