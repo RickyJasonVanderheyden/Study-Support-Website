@@ -25,7 +25,8 @@ import {
   Flame,
   TrendingUp,
   Clock,
-  BarChart3
+  BarChart3,
+  Sparkles
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -33,6 +34,7 @@ import api from '../services/api';
 import BookLoader from '../components/common/BookLoader';
 import SiteHeader from '../components/layout/SiteHeader';
 import SiteFooter from '../components/layout/SiteFooter';
+import OnboardingTutorial from '../components/quizpdfs/OnboardingTutorial';
 import module2BackgroundVideo from '../components/quizpdfs/63328-506377472_medium.mp4';
 
 const Module2Page = () => {
@@ -173,6 +175,12 @@ const Module2Page = () => {
   const [progressData, setProgressData] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(false);
 
+  // Tutorial state
+  const [showTutorial, setShowTutorial] = useState(() => {
+    if (!currentUserId) return false;
+    return !localStorage.getItem('module2_tutorialSeen');
+  });
+
   // Content types configuration
   const contentTypes = [
     {
@@ -252,8 +260,19 @@ const Module2Page = () => {
         redirectToLogin();
         return;
       }
+      
       console.error('Error fetching content:', error);
-      toast.error('Failed to load your AI Tools content');
+      
+      let errorMessage = '';
+      if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to server. Please check your internet connection and try again.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Unable to load your content at this moment. Please try again.';
+      } else {
+        errorMessage = 'Failed to load your AI Tools content. Please try refreshing the page.';
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoadingContent(false);
     }
@@ -289,8 +308,19 @@ const Module2Page = () => {
         redirectToLogin();
         return;
       }
+      
       console.error('Error fetching progress:', error);
-      toast.error('Failed to load your progress data');
+      
+      let errorMessage = '';
+      if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to server. Please check your internet connection.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Unable to load your progress data. Please try again.';
+      } else {
+        errorMessage = 'Failed to load your progress data. Please refresh the page.';
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoadingProgress(false);
     }
@@ -315,19 +345,13 @@ const Module2Page = () => {
     const droppedFile = e.dataTransfer.files[0];
     
     if (droppedFile) {
-      // 1. Check file type
-      if (!isValidFile(droppedFile)) {
-        toast.error('Please upload a PDF, DOCX, PPTX, or TXT file');
-        return;
-      }
-      
-      // 2. Check file size (10MB limit)
-      if (droppedFile.size > 10 * 1024 * 1024) {
-        toast.error('File size exceeds the 10 MB limit');
+      const validation = validateFile(droppedFile);
+      if (!validation.valid) {
+        toast.error(validation.error);
         return;
       }
 
-      // 3. Process valid file
+      // Process valid file
       if (savedFileName && droppedFile.name !== savedFileName) {
         setGeneratedContent({ quiz: null, flashcards: null, mindmap: null, audio: null });
         if (currentUserId) {
@@ -335,6 +359,7 @@ const Module2Page = () => {
         }
       }
       setFile(droppedFile);
+      toast.success(`File "${droppedFile.name}" uploaded successfully`);
     }
   }, [savedFileName, currentUserId]);
 
@@ -342,21 +367,14 @@ const Module2Page = () => {
     const selectedFile = e.target.files[0];
     
     if (selectedFile) {
-      // 1. Check file type
-      if (!isValidFile(selectedFile)) {
-        toast.error('Please upload a PDF, DOCX, PPTX, or TXT file');
+      const validation = validateFile(selectedFile);
+      if (!validation.valid) {
+        toast.error(validation.error);
         e.target.value = null; // Reset input
         return;
       }
 
-      // 2. Check file size (10MB limit)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        toast.error('File size exceeds the 10 MB limit');
-        e.target.value = null; // Reset input
-        return;
-      }
-
-      // 3. Process valid file
+      // Process valid file
       if (savedFileName && selectedFile.name !== savedFileName) {
         setGeneratedContent({ quiz: null, flashcards: null, mindmap: null, audio: null });
         if (currentUserId) {
@@ -364,13 +382,49 @@ const Module2Page = () => {
         }
       }
       setFile(selectedFile);
+      toast.success(`File "${selectedFile.name}" uploaded successfully`);
     }
   };
-  const isValidFile = (file) => {
+  const validateFile = (file) => {
+    if (!file) {
+      return { valid: false, error: 'No file selected' };
+    }
+
+    // Check file type
     const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'text/plain'];
     const validExtensions = ['.pdf', '.docx', '.pptx', '.txt'];
     const ext = '.' + file.name.split('.').pop().toLowerCase();
-    return validTypes.includes(file.type) || validExtensions.includes(ext);
+    
+    if (!validTypes.includes(file.type) && !validExtensions.includes(ext)) {
+      return { 
+        valid: false, 
+        error: 'Invalid file type. Supported formats: PDF, DOCX, PPTX, TXT' 
+      };
+    }
+
+    // Check file size
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_FILE_SIZE) {
+      return { 
+        valid: false, 
+        error: `File is ${formatFileSize(file.size)}. Maximum allowed size is ${formatFileSize(MAX_FILE_SIZE)}`
+      };
+    }
+
+    // Check file is not empty
+    if (file.size === 0) {
+      return { 
+        valid: false, 
+        error: 'File appears to be empty. Please upload a valid document' 
+      };
+    }
+
+    return { valid: true };
+  };
+
+  const isValidFile = (file) => {
+    const validation = validateFile(file);
+    return validation.valid;
   };
 
   const removeFile = () => {
@@ -395,6 +449,14 @@ const Module2Page = () => {
   const handleGenerateClick = (type) => {
     if (!file) {
       toast.error('Please upload a file first');
+      return;
+    }
+
+    // Validate file still exists and is valid
+    const fileValidation = validateFile(file);
+    if (!fileValidation.valid) {
+      toast.error(fileValidation.error);
+      removeFile();
       return;
     }
 
@@ -459,15 +521,38 @@ const Module2Page = () => {
       setSuccessContentType(type);
       setSuccessContentId(generatedId);
       setShowSuccessModal(true);
+      
+      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} generated successfully!`);
     } catch (error) {
       console.error('Generation error:', error);
+      
+      // Handle different error types
       if (isUnauthorizedError(error)) {
         redirectToLogin();
-      } else if (error.code === 'ERR_NETWORK') {
-        toast.error('Cannot connect to server. Ensure backend is running on http://localhost:5000');
-      } else {
-        toast.error(error.response?.data?.error || `Failed to generate ${type}`);
+        return;
       }
+      
+      let errorMessage = '';
+      
+      if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to server. Please ensure the backend is running on http://localhost:5000 and check your internet connection.';
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = `Generation request timed out. The document might be too large or the server is busy. Try with a smaller file or fewer questions.`;
+      } else if (error.response?.status === 429) {
+        errorMessage = 'Too many requests. Please wait a moment and try again.';
+      } else if (error.response?.status === 413) {
+        errorMessage = 'File is too large for the server to process. Try with a smaller document.';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.error || `Invalid ${type} parameters. Please check your inputs and try again.`;
+      } else if (error.response?.status === 500) {
+        errorMessage = `Server error while generating ${type}. Please try again in a moment.`;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else {
+        errorMessage = `Failed to generate ${type}. Please try again. If the problem persists, try with a different file or check your internet connection.`;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setGenerating(false);
       setGenerationType(null);
@@ -504,7 +589,20 @@ const Module2Page = () => {
 
   // Delete content
   const deleteContent = async (type, id) => {
-    if (!window.confirm(`Are you sure you want to delete this ${type === 'flashcards' ? 'flashcard set' : type === 'mindmap' ? 'mind map' : type === 'audio' ? 'audio notes' : 'quiz'}?`)) {
+    if (!id) {
+      toast.error('Invalid content ID. Cannot delete.');
+      return;
+    }
+
+    const contentTypeLabel = type === 'flashcards' 
+      ? 'flashcard set' 
+      : type === 'mindmap' 
+        ? 'mind map' 
+        : type === 'audio' 
+          ? 'audio notes' 
+          : 'quiz';
+
+    if (!window.confirm(`Are you sure you want to permanently delete this ${contentTypeLabel}? This action cannot be undone.`)) {
       return;
     }
 
@@ -518,14 +616,26 @@ const Module2Page = () => {
             : `/module2/generate/audio/${id}`;
 
       await api.delete(endpoint);
-      toast.success('Deleted successfully');
+      toast.success(`${contentTypeLabel.charAt(0).toUpperCase() + contentTypeLabel.slice(1)} deleted successfully`);
       fetchAllContent(); // Refresh the list
     } catch (error) {
       if (isUnauthorizedError(error)) {
         redirectToLogin();
         return;
       }
-      toast.error(error.response?.data?.error || 'Failed to delete');
+      
+      let errorMessage = '';
+      if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to server. Please check your internet connection.';
+      } else if (error.response?.status === 404) {
+        errorMessage = `${contentTypeLabel.charAt(0).toUpperCase() + contentTypeLabel.slice(1)} not found. It may have already been deleted.`;
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Unable to delete at this moment. Please try again.';
+      } else {
+        errorMessage = error.response?.data?.error || `Failed to delete ${contentTypeLabel}`;
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -961,7 +1071,7 @@ const Module2Page = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6">
               {!file && !hasGeneratedContent ? (
                 <div
-                  className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${dragActive
+                  className={`file-upload-area relative border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${dragActive
                       ? 'border-orange-400 bg-orange-50'
                       : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50/50'
                     }`}
@@ -1054,7 +1164,7 @@ const Module2Page = () => {
                   placeholder="e.g. Biology, Economics (optional)"
                   value={options.subject}
                   onChange={(e) => setOptions(prev => ({ ...prev, subject: e.target.value }))}
-                  className="flex-1 max-w-md px-4 py-2 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
+                  className="subject-input flex-1 max-w-md px-4 py-2 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
                 />
               </div>
             </div>
@@ -1063,9 +1173,19 @@ const Module2Page = () => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Choose Content Type</h2>
-                <span className="px-3 py-1 rounded-full text-xs font-bold tracking-wider" style={{ background: '#D6ECD8', color: '#1E4D35', border: '1px solid rgba(30,77,53,0.2)' }}>
-                  4 MODULES
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowTutorial(true)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    title="Learn about each content type"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Take Tour
+                  </button>
+                  <span className="px-3 py-1 rounded-full text-xs font-bold tracking-wider" style={{ background: '#D6ECD8', color: '#1E4D35', border: '1px solid rgba(30,77,53,0.2)' }}>
+                    4 MODULES
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1746,7 +1866,9 @@ const Module2Page = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty Level</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Difficulty Level
+                  </label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { value: 'easy', label: 'Easy' },
@@ -2011,6 +2133,15 @@ const Module2Page = () => {
 
       </div>
       </div>
+      
+      {/* Onboarding Tutorial Modal */}
+      {showTutorial && (
+        <OnboardingTutorial
+          onClose={() => setShowTutorial(false)}
+          onSkip={() => setShowTutorial(false)}
+        />
+      )}
+
       <div style={{ position: 'relative', zIndex: 50, backgroundColor: '#173e1f' }}>
         <SiteFooter />
       </div>

@@ -675,7 +675,7 @@ const MindMapView = () => {
             </nav>
             
             <div className="flex items-center gap-4">
-              {/* NEW: Dark Mode Toggle */}
+              {/* Dark Mode Toggle */}
               <button 
                 onClick={() => setIsDarkMode(!isDarkMode)}
                 className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
