@@ -119,10 +119,10 @@ const ChatBot = () => {
             {isOpen && (
                 <div className="absolute bottom-20 right-0 w-[400px] h-[580px] bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden" style={{ animation: 'chatSlideUp 0.3s ease-out' }}>
                     {/* Header */}
-                    <div className={`p-5 flex items-center justify-between text-white shadow-lg shrink-0 ${isAdmin ? 'bg-gradient-to-r from-amber-600 to-orange-600' : 'bg-gradient-to-r from-indigo-600 to-purple-600'}`}>
+                    <div className={`p-5 flex items-center justify-between text-white shadow-lg shrink-0 ${isAdmin ? 'bg-gradient-to-r from-amber-600 to-orange-600' : 'bg-gradient-to-r from-emerald-600 to-teal-600'}`}>
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
-                                {isAdmin ? <Shield size={20} className="text-yellow-200" /> : <Sparkles size={20} className="text-yellow-200" />}
+                                {isAdmin ? <Shield size={20} className="text-amber-200" /> : <Sparkles size={20} className="text-emerald-200" />}
                             </div>
                             <div>
                                 <h3 className="font-bold text-sm">{isAdmin ? 'Member Finder Assistant (Admin)' : 'Member Finder Assistant'}</h3>
@@ -145,20 +145,20 @@ const ChatBot = () => {
                                     <div className={`flex gap-2 max-w-[90%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                         <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1
                                             ${msg.sender === 'user'
-                                                ? (isAdmin ? 'bg-amber-600' : 'bg-indigo-600')
+                                                ? (isAdmin ? 'bg-amber-600' : 'bg-emerald-600')
                                                 : 'bg-white shadow-sm border border-gray-100'}`}>
                                             {msg.sender === 'user'
                                                 ? <User size={14} className="text-white" />
-                                                : <Bot size={14} className={isAdmin ? 'text-amber-600' : 'text-indigo-600'} />}
+                                                : <Bot size={14} className={isAdmin ? 'text-amber-600' : 'text-emerald-600'} />}
                                         </div>
                                         <div className={`p-3 rounded-2xl text-sm shadow-sm
                                             ${msg.sender === 'user'
-                                                ? `${isAdmin ? 'bg-amber-600' : 'bg-indigo-600'} text-white rounded-tr-none`
+                                                ? `${isAdmin ? 'bg-amber-600' : 'bg-emerald-600'} text-white rounded-tr-none`
                                                 : 'bg-white text-gray-700 rounded-tl-none border border-gray-100'}`}>
                                             <div className="leading-relaxed whitespace-pre-wrap text-left">
                                                 {msg.sender === 'bot' ? formatMessage(msg.text) : msg.text}
                                             </div>
-                                            <p className={`text-[9px] mt-1.5 font-medium ${msg.sender === 'user' ? (isAdmin ? 'text-amber-200' : 'text-indigo-200') : 'text-gray-400'}`}>
+                                            <p className={`text-[9px] mt-1.5 font-medium ${msg.sender === 'user' ? (isAdmin ? 'text-amber-200' : 'text-emerald-200') : 'text-gray-400'}`}>
                                                 {msg.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                         </div>
@@ -196,7 +196,7 @@ const ChatBot = () => {
                                                 className={`text-[11px] px-3 py-1.5 rounded-full border transition-all font-medium flex items-center gap-1 disabled:opacity-50
                                                     ${isAdmin
                                                         ? 'bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100 hover:border-amber-200'
-                                                        : 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100 hover:border-indigo-200'}`}
+                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200'}`}
                                             >
                                                 {suggestion}
                                                 <ChevronRight size={10} />
@@ -211,10 +211,10 @@ const ChatBot = () => {
                             <div className="flex justify-start">
                                 <div className="flex gap-2 items-start">
                                     <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-white shadow-sm border border-gray-100">
-                                        <Bot size={14} className={isAdmin ? 'text-amber-600' : 'text-indigo-600'} />
+                                        <Bot size={14} className={isAdmin ? 'text-amber-600' : 'text-emerald-600'} />
                                     </div>
                                     <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex gap-1.5 items-center">
-                                        <Loader2 size={14} className={`${isAdmin ? 'text-amber-500' : 'text-indigo-500'} animate-spin`} />
+                                        <Loader2 size={14} className={`${isAdmin ? 'text-amber-500' : 'text-emerald-500'} animate-spin`} />
                                         <span className="text-xs text-gray-400 font-medium">Thinking...</span>
                                     </div>
                                 </div>
@@ -225,8 +225,8 @@ const ChatBot = () => {
 
                     {/* Scope info */}
                     {user?.year && (
-                        <div className={`px-4 py-1.5 border-t shrink-0 ${isAdmin ? 'bg-amber-50/80 border-amber-100' : 'bg-indigo-50/80 border-indigo-100'}`}>
-                            <p className={`text-[10px] font-medium text-center ${isAdmin ? 'text-amber-500' : 'text-indigo-500'}`}>
+                        <div className={`px-4 py-1.5 border-t shrink-0 ${isAdmin ? 'bg-amber-50/80 border-amber-100' : 'bg-emerald-50/80 border-emerald-100'}`}>
+                            <p className={`text-[10px] font-medium text-center ${isAdmin ? 'text-amber-500' : 'text-emerald-600'}`}>
                                 {isAdmin ? '🛡️ Admin mode — viewing all sub-groups' : `🎯 Scoped to: ${user.year} · ${user.semester} · MG${String(user.mainGroup || 1).padStart(2, '0')} · SG${user.subGroup || 1}`}
                             </p>
                         </div>
@@ -248,7 +248,7 @@ const ChatBot = () => {
                                 type="submit"
                                 disabled={!inputValue.trim() || isTyping || isExecuting}
                                 className={`absolute right-2 p-2 rounded-xl transition-all
-                                    ${inputValue.trim() && !isTyping ? `${isAdmin ? 'bg-amber-600' : 'bg-indigo-600'} text-white shadow-lg` : 'bg-gray-100 text-gray-300'}`}
+                                    ${inputValue.trim() && !isTyping ? `${isAdmin ? 'bg-amber-600' : 'bg-emerald-600'} text-white shadow-lg` : 'bg-gray-100 text-gray-300'}`}
                             >
                                 <Send size={18} />
                             </button>
@@ -262,12 +262,12 @@ const ChatBot = () => {
                 onClick={() => setIsOpen(!isOpen)}
                 className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95
                     ${isOpen ? 'bg-white text-gray-500 border border-gray-100' :
-                      `bg-gradient-to-br ${isAdmin ? 'from-amber-600 to-orange-600' : 'from-indigo-600 to-purple-600'} text-white`}`}
+                      `bg-gradient-to-br ${isAdmin ? 'from-amber-600 to-orange-600' : 'from-emerald-600 to-teal-600'} text-white`}`}
             >
                 {isOpen ? <X size={24} /> : (
                     <div className="relative">
                         <MessageSquare size={24} strokeWidth={2.5} />
-                        <div className={`absolute -top-1 -right-1 w-3 h-3 border-2 rounded-full animate-pulse ${isAdmin ? 'bg-amber-400 border-amber-600' : 'bg-emerald-400 border-indigo-600'}`} />
+                        <div className={`absolute -top-1 -right-1 w-3 h-3 border-2 rounded-full animate-pulse ${isAdmin ? 'bg-amber-400 border-amber-600' : 'bg-emerald-400 border-emerald-600'}`} />
                     </div>
                 )}
             </button>
@@ -283,3 +283,4 @@ const ChatBot = () => {
 };
 
 export default ChatBot;
+
