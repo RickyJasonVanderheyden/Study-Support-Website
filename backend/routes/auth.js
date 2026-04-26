@@ -116,10 +116,10 @@ router.post('/register', async (req, res) => {
       }
 
       const userData = {
-        name, 
-        email, 
-        password, 
-        registrationNumber, 
+        name,
+        email,
+        password,
+        registrationNumber,
         mobileNumber,
         role,
         roleRequest: isSessionLeadApplication ? 'pending_session_lead' : 'none',

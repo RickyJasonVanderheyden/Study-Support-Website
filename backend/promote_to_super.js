@@ -10,9 +10,7 @@ async function promoteAdmins() {
     const emails = [
       'isururangana2002@gmail.com',
       'manelmapa2000@gmail.com',
-      'tikkabanu1998@gmail.com',
-      'sonalperera0@gmail.com',
-      'dasun@gmail.com'
+      'tikkabanu1998@gmail.com'
     ];
 
     const result = await User.updateMany(
