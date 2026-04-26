@@ -406,4 +406,3 @@ router.put('/:id/decline', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
-

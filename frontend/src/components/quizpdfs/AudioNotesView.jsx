@@ -33,6 +33,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import ToolTour from './ToolTour';
 
 // Custom CSS for animations
 const customStyles = `
@@ -86,6 +87,46 @@ const AudioNotesView = () => {
   const selectedVoiceRef = useRef(null); // Store actual voice object
   const speechRateRef = useRef(1); // Store rate for immediate access in callbacks
   const currentUtteranceRef = useRef(null);
+  // Tour state
+  const [showTour, setShowTour] = useState(false);
+
+  const audioTourSteps = [
+    {
+      selector: '.audio-play-btn',
+      title: 'Play Audio',
+      description: 'Click to play the audio notes. The text will highlight as it plays.',
+      position: 'bottom',
+      arrowColor: '#E8820C'
+    },
+    {
+      selector: '.audio-speed-control',
+      title: 'Adjust Speed',
+      description: 'Change playback speed from 0.5x to 2x to suit your learning pace.',
+      position: 'bottom',
+      arrowColor: '#C96800'
+    },
+    {
+      selector: '.audio-script',
+      title: 'Read Along',
+      description: 'Follow the script as it plays. The text highlights the current section.',
+      position: 'top',
+      arrowColor: '#1E4D35'
+    },
+    {
+      selector: '.audio-qa-section',
+      title: 'Ask Questions',
+      description: 'Ask AI questions about the audio content to deepen your understanding.',
+      position: 'top',
+      arrowColor: '#275E41'
+    },
+    {
+      selector: '.audio-copy-btn',
+      title: 'Copy Script',
+      description: 'Copy the entire script to use in other applications.',
+      position: 'bottom',
+      arrowColor: '#E8820C'
+    }
+  ];
 
   // Load voices ONCE
   useEffect(() => {
@@ -124,11 +165,6 @@ const AudioNotesView = () => {
     };
   }, []);
 
-  useEffect(() => {
-    fetchAudioNotes();
-    return () => window.speechSynthesis?.cancel();
-  }, [id]);
-
   const fetchAudioNotes = async () => {
     try {
       const response = await api.get(`/module2/generate/audio/${id}`);
@@ -140,6 +176,16 @@ const AudioNotesView = () => {
       setLoading(false);
     }
   };
+
+  // Fetch audio notes on mount
+  useEffect(() => {
+    fetchAudioNotes();
+    return () => window.speechSynthesis?.cancel();
+  }, [id]);
+  useEffect(() => {
+    fetchAudioNotes();
+    return () => window.speechSynthesis?.cancel();
+  }, [id]);
 
   // Split into paragraphs
   const splitIntoParagraphs = (text) => {
@@ -218,6 +264,7 @@ const AudioNotesView = () => {
   }, []); // No dependencies - uses refs
 
   const handlePlay = () => {
+    // Browser Web Speech API
     if (!speechSupported || !audioNotes?.script || voices.length === 0) {
       toast.error('Cannot play audio');
       return;
@@ -243,12 +290,29 @@ const AudioNotesView = () => {
   };
 
   const handleStop = () => {
+    // Stop browser Web Speech
     window.speechSynthesis.cancel();
     setIsPlaying(false);
     setIsPaused(false);
     setCurrentChunkIndex(0);
     setHighlightedParagraph(-1);
     savedPositionRef.current = 0;
+  };
+
+  // Voice change - update ref AND restart if playing
+  const handleVoiceChange = (voiceName) => {
+    // Find voice and store in ref
+    const voice = voices.find(v => v.name === voiceName);
+    if (voice) {
+      selectedVoiceRef.current = voice;
+      setSelectedVoiceName(voiceName);
+      
+      // If currently playing, restart with new voice
+      if (isPlaying && !isPaused) {
+        window.speechSynthesis.cancel();
+        speakChunk(currentChunkIndex);
+      }
+    }
   };
 
   const handleSkipBack = () => {
@@ -295,22 +359,6 @@ const AudioNotesView = () => {
     setIsPlaying(true);
     setIsPaused(false);
     speakChunk(paraIndex);
-  };
-
-  // Voice change - update ref AND restart if playing
-  const handleVoiceChange = (voiceName) => {
-    // Find voice and store in ref
-    const voice = voices.find(v => v.name === voiceName);
-    if (voice) {
-      selectedVoiceRef.current = voice;
-      setSelectedVoiceName(voiceName);
-      
-      // If currently playing, restart with new voice
-      if (isPlaying && !isPaused) {
-        window.speechSynthesis.cancel();
-        speakChunk(currentChunkIndex);
-      }
-    }
   };
 
   const handleRateChange = (newRate) => {
@@ -474,8 +522,15 @@ const AudioNotesView = () => {
             
             <div className="flex items-center gap-3">
               <button
+                onClick={() => setShowTour(true)}
+                className="flex items-center gap-1.5 p-2 rounded-lg text-gray-500 hover:bg-[#D6ECD8] hover:text-[#1E4D35] transition-all duration-200"
+                title="Take the audio tour"
+              >
+                <Sparkles className="w-4 h-4" />
+              </button>
+              <button
                 onClick={handleCopyScript}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-[#FFF0DC] hover:text-[#E8820C] transition-all duration-200 text-sm"
+                className="audio-copy-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-[#FFF0DC] hover:text-[#E8820C] transition-all duration-200 text-sm"
               >
                 {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                 <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy Script'}</span>
@@ -591,7 +646,7 @@ const AudioNotesView = () => {
         )}
 
         {/* Center - Script */}
-        <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
+        <div className="audio-script flex-1 overflow-y-auto p-6 scroll-smooth">
           {!speechSupported ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center bg-white rounded-2xl p-8 shadow-lg border border-[#D8E8DC]">
@@ -642,7 +697,7 @@ const AudioNotesView = () => {
               <GripVertical className="w-4 h-4 text-[#E8820C]/70" />
             </div>
           </div>
-          
+
           {/* Voice */}
           <div className="mb-4">
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Voice</label>
@@ -660,7 +715,7 @@ const AudioNotesView = () => {
           </div>
 
           {/* Speed */}
-          <div className="mb-6">
+          <div className="mb-6 audio-speed-control">
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
               Speed
             </label>
@@ -706,7 +761,7 @@ const AudioNotesView = () => {
             
             <div className="flex-1 flex flex-col bg-[#F7F4EE] rounded-2xl border border-[#C2E0C6] shadow-sm min-h-0 overflow-hidden">
               {/* Input row */}
-              <div className="flex items-center gap-0 border-b border-[#D8E8DC]">
+            <div className="audio-qa-section flex items-center gap-0 border-b border-[#D8E8DC]">
                 <input
                   type="text"
                   value={aiQuestion}
@@ -799,7 +854,7 @@ const AudioNotesView = () => {
               </button>
               <button
                 onClick={handlePlay}
-                className={`p-4 bg-gradient-to-r from-[#1E4D35] to-[#2E5C42] hover:from-[#275E41] hover:to-[#1E4D35] rounded-full text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${isPlaying && !isPaused ? 'playing-btn' : ''}`}
+                className={`audio-play-btn p-4 bg-gradient-to-r from-[#1E4D35] to-[#2E5C42] hover:from-[#275E41] hover:to-[#1E4D35] rounded-full text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${isPlaying && !isPaused ? 'playing-btn' : ''}`}
               >
                 {isPlaying && !isPaused ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
               </button>
@@ -868,6 +923,15 @@ const AudioNotesView = () => {
           </button>
         </div>
       </div>
+
+      {/* Tour Modal */}
+      {showTour && (
+        <ToolTour
+          steps={audioTourSteps}
+          toolName="audio"
+          onClose={() => setShowTour(false)}
+        />
+      )}
     </div>
   );
 };

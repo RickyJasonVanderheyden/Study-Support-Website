@@ -238,4 +238,3 @@ const CreateGroupModal = ({ isOpen, onClose, onCreated }) => {
 };
 
 export default CreateGroupModal;
-

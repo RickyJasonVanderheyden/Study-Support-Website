@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import ToolTour from './ToolTour';
 
 const FlashcardStudy = () => {
   const { id } = useParams();
@@ -44,6 +45,46 @@ const FlashcardStudy = () => {
   const [shuffledCards, setShuffledCards] = useState([]);
   const [studyComplete, setStudyComplete] = useState(false);
   const [difficultyFilter, setDifficultyFilter] = useState('all');
+
+  const [showTour, setShowTour] = useState(false);
+
+  const flashcardsTourSteps = [
+    {
+      selector: '.flashcard-card',
+      title: 'Flip the Card',
+      description: 'Click or press spacebar to flip the card and reveal the answer.',
+      position: 'bottom',
+      arrowColor: '#C96800'
+    },
+    {
+      selector: '.flashcard-hint',
+      title: 'Get a Hint',
+      description: 'Stuck? Press H or click Hint to get a clue before flipping.',
+      position: 'bottom',
+      arrowColor: '#E8820C'
+    },
+    {
+      selector: '.flashcard-buttons',
+      title: 'Rate Your Knowledge',
+      description: 'Mark if you got it right, wrong, or need more practice.',
+      position: 'top',
+      arrowColor: '#1E4D35'
+    },
+    {
+      selector: '.flashcard-shuffle',
+      title: 'Shuffle Cards',
+      description: 'Mix up the order to avoid memorizing by sequence.',
+      position: 'bottom',
+      arrowColor: '#275E41'
+    },
+    {
+      selector: '.flashcard-progress',
+      title: 'Track Your Progress',
+      description: 'See how many cards you\'ve mastered in this session.',
+      position: 'bottom',
+      arrowColor: '#E8820C'
+    }
+  ];
 
   // Filtered cards based on difficulty
   const filteredCards = difficultyFilter === 'all' 
@@ -286,6 +327,13 @@ const FlashcardStudy = () => {
             
             <div className="flex items-center gap-3">
               <button
+                onClick={() => setShowTour(true)}
+                className="hidden sm:flex items-center gap-1.5 p-2 rounded-lg text-gray-500 hover:text-[#1E4D35] hover:bg-[#D6ECD8] transition-all"
+                title="Take the flashcard tour"
+              >
+                <Sparkles className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => navigate('/module2')}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:text-[#C96800] hover:bg-[#FFF0DC] transition-all"
               >
@@ -375,7 +423,7 @@ const FlashcardStudy = () => {
         {/* ── Center - Card Area ── */}
         <main className="flex-1 flex flex-col overflow-hidden px-4 py-4 lg:px-6">
           {/* Title + progress bar */}
-          <div className="mb-3">
+          <div className="flashcard-progress mb-3">
             <div className="flex items-center justify-between mb-1.5">
               <h1 className="text-base font-black text-gray-900 truncate">{flashcardSet.title}</h1>
               <span className="text-xs font-bold text-[#C96800] flex-shrink-0 ml-2">{currentIndex + 1} / {filteredCards.length}</span>
@@ -390,7 +438,7 @@ const FlashcardStudy = () => {
           </div>
 
           {/* Flashcard — smaller, fixed height */}
-          <div className="flex-shrink-0 mb-3">
+          <div className="flashcard-card flex-shrink-0 mb-3">
             <div
               onClick={handleFlip}
               className="relative w-full cursor-pointer"
@@ -433,7 +481,7 @@ const FlashcardStudy = () => {
 
           {/* Hint */}
           {currentCard?.hint && (
-            <div className="mb-3 flex-shrink-0">
+            <div className="flashcard-hint mb-3 flex-shrink-0">
               <AnimatePresence>
                 {showHint ? (
                   <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
@@ -455,7 +503,7 @@ const FlashcardStudy = () => {
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-center gap-3 mb-3 flex-shrink-0">
+          <div className="flashcard-buttons flex items-center justify-center gap-3 mb-3 flex-shrink-0">
             <button onClick={handleDidntKnow}
               className="flex-1 max-w-[140px] flex items-center justify-center gap-1.5 px-3 py-2.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all font-semibold text-sm shadow-md"
             >
@@ -510,7 +558,7 @@ const FlashcardStudy = () => {
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Tools</p>
             <div className="space-y-1.5">
               <button onClick={shuffleCards}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-[#FFF0DC] hover:text-[#C96800] transition-all"
+                className="flashcard-shuffle w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-[#FFF0DC] hover:text-[#C96800] transition-all"
               >
                 <Shuffle className="w-4 h-4" /> Shuffle Cards
               </button>
@@ -557,6 +605,15 @@ const FlashcardStudy = () => {
           </div>
         </aside>
       </div>
+
+      {/* Tour Modal */}
+      {showTour && (
+        <ToolTour
+          steps={flashcardsTourSteps}
+          toolName="flashcards"
+          onClose={() => setShowTour(false)}
+        />
+      )}
     </div>
   );
 };

@@ -376,4 +376,3 @@ const FindMembersSection = ({ groups = [] }) => {
 };
 
 export default FindMembersSection;
-

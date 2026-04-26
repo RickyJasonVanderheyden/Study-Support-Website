@@ -20,6 +20,11 @@ import Module4Page from './pages/Module4Page';
 import GroupDetail from './pages/GroupDetail';
 import AdminPanel from './pages/AdminPanel';
 import Profile from './pages/Profile';
+import QuizTake from './components/quizpdfs/QuizTake';
+import QuizResults from './components/quizpdfs/QuizResults';
+import FlashcardStudy from './components/quizpdfs/FlashcardStudy';
+import MindMapView from './components/quizpdfs/MindMapView';
+import AudioNotesView from './components/quizpdfs/AudioNotesView';
 
 import Layout from './components/Layout';
 
@@ -93,6 +98,11 @@ function App() {
 
           <Route path="/module1" element={<AuthenticatedLayout><Module1Page /></AuthenticatedLayout>} />
           <Route path="/module2" element={<AuthenticatedLayout><Module2Page /></AuthenticatedLayout>} />
+          <Route path="/module2/quiz/:id" element={<AuthenticatedLayout><QuizTake /></AuthenticatedLayout>} />
+          <Route path="/module2/quiz/:id/results" element={<AuthenticatedLayout><QuizResults /></AuthenticatedLayout>} />
+          <Route path="/module2/flashcards/:id" element={<AuthenticatedLayout><FlashcardStudy /></AuthenticatedLayout>} />
+          <Route path="/module2/mindmaps/:id" element={<AuthenticatedLayout><MindMapView /></AuthenticatedLayout>} />
+          <Route path="/module2/audio/:id" element={<AuthenticatedLayout><AudioNotesView /></AuthenticatedLayout>} />
           <Route path="/module3" element={<AuthenticatedLayout><Module3Page /></AuthenticatedLayout>} />
           <Route path="/module3/session/:id" element={<AuthenticatedLayout><Module3SessionDetailsPage /></AuthenticatedLayout>} />
           <Route path="/module4" element={<AuthenticatedLayout><Module4Page /></AuthenticatedLayout>} />
