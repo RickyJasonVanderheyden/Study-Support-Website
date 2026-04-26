@@ -74,6 +74,7 @@ router.post('/pre-register', authMiddleware, roleMiddleware(['admin', 'super_adm
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, registrationNumber, mobileNumber, year, semester, mainGroup, subGroup, adminToken } = req.body;
+    const normalizedPassword = String(password || '').trim();
 
     // validation (optional but good to have)
     const registeringAsAdmin = isAdminEmail(email);
@@ -95,9 +96,15 @@ router.post('/register', async (req, res) => {
     });
 
     const trimmedLeadToken = (adminToken || '').trim();
-    const sessionLeadSecret = (process.env.SESSION_LEAD_SECRET || '').trim();
-    const isSessionLeadApplication =
-      Boolean(trimmedLeadToken && sessionLeadSecret) && trimmedLeadToken === sessionLeadSecret;
+    const sessionLeadSecret = 'learnloop-lead-2026';
+
+    if (trimmedLeadToken && trimmedLeadToken !== sessionLeadSecret) {
+      return res.status(400).json({
+        error: 'Invalid Session Lead secret token. Please use the correct token.',
+      });
+    }
+
+    const isSessionLeadApplication = Boolean(trimmedLeadToken);
 
     if (!user) {
       // If not pre-registered, we create a new one directly
@@ -118,7 +125,7 @@ router.post('/register', async (req, res) => {
       const userData = {
         name,
         email,
-        password,
+        password: normalizedPassword,
         registrationNumber,
         mobileNumber,
         role,
@@ -142,7 +149,7 @@ router.post('/register', async (req, res) => {
 
     // Activate existing pre-registered user
     user.name = name;
-    user.password = password;
+    user.password = normalizedPassword;
     user.mobileNumber = mobileNumber;
     user.roleRequest = isSessionLeadApplication ? 'pending_session_lead' : 'none';
     if (year) user.year = year;
@@ -179,13 +186,40 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedPassword = String(password || '').trim();
 
-    const user = await User.findOne({ email, isActivated: true }).select('+password');
+    if (!normalizedEmail || !normalizedPassword) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const isMatch = await user.comparePassword(password);
+    const allowedSuperAdminEmail = String(process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'superadmin@co.in').trim().toLowerCase();
+    if (user.role === 'super_admin' && user.email !== allowedSuperAdminEmail) {
+      return res.status(403).json({ error: 'Super Admin access is restricted to the primary account.' });
+    }
+
+    // Keep activation enforcement for normal accounts, but allow legacy super admin records
+    // that may not have the isActivated flag populated.
+    if (user.role !== 'super_admin' && !user.isActivated) {
+      return res.status(403).json({ error: 'Account is not activated yet. Please complete registration first.' });
+    }
+
+    let isMatch = await user.comparePassword(normalizedPassword);
+
+    // Legacy compatibility:
+    // if some records were stored with plain-text passwords (manual inserts/old flow),
+    // allow one successful login and immediately upgrade to bcrypt hash.
+    if (!isMatch && typeof user.password === 'string' && user.password === normalizedPassword) {
+      user.password = normalizedPassword;
+      await user.save();
+      isMatch = true;
+    }
+
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }

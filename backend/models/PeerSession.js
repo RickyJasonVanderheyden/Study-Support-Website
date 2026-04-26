@@ -81,6 +81,34 @@ const peerSessionSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    leadSharedPrep: {
+      title: { type: String, trim: true, default: '' },
+      overview: { type: String, trim: true, default: '' },
+      revisionGoals: { type: [String], default: [] },
+      likelyQuestions: {
+        type: [
+          {
+            question: { type: String, trim: true, default: '' },
+            whyItMatters: { type: String, trim: true, default: '' },
+          },
+        ],
+        default: [],
+      },
+      studyPlan: {
+        type: [
+          {
+            step: { type: String, trim: true, default: '' },
+            durationMinutes: { type: Number, default: 0 },
+          },
+        ],
+        default: [],
+      },
+      quickTips: { type: [String], default: [] },
+      source: { type: String, enum: ['ai', 'fallback'], default: 'fallback' },
+      publishedByName: { type: String, trim: true, default: '' },
+      publishedByEmail: { type: String, trim: true, lowercase: true, default: '' },
+      publishedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

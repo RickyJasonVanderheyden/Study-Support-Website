@@ -7,6 +7,7 @@ const Quiz = require('../../models/Quiz');
 const FlashcardSet = require('../../models/FlashcardSet');
 const MindMap = require('../../models/MindMap');
 const AudioNotes = require('../../models/AudioNotes');
+const Module2SourceDoc = require('../../models/Module2SourceDoc');
 const { extractText, deleteTempFile } = require('../../utils/fileExtractor');
 const { generationLimiter } = require('../../middleware/rateLimiter');
 const { generateQuizFromContent, summarizeContent } = require('../../services/quizGenerator');
@@ -74,6 +75,30 @@ const parseDurationToSeconds = (duration) => {
   return totalSeconds;
 };
 
+const cacheSourceContent = async ({ userId, fileName, content }) => {
+  if (!userId || !fileName || !content) return;
+  await Module2SourceDoc.findOneAndUpdate(
+    { user: userId, fileName },
+    {
+      $set: {
+        extractedText: content,
+        lastUsedAt: new Date(),
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+};
+
+const getCachedSourceContent = async ({ userId, sourceFileName }) => {
+  const safeName = String(sourceFileName || '').trim();
+  if (!safeName) return null;
+  const cached = await Module2SourceDoc.findOne({ user: userId, fileName: safeName });
+  if (!cached) return null;
+  cached.lastUsedAt = new Date();
+  await cached.save();
+  return cached;
+};
+
 /**
  * @route   POST /api/module2/generate/upload
  * @desc    Upload a file and generate a quiz from its content
@@ -83,12 +108,25 @@ router.post('/upload', generationLimiter, upload.single('file'), async (req, res
   let filePath = null;
   
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+    let content = '';
+    let originalName = '';
 
-    filePath = req.file.path;
-    const originalName = req.file.originalname;
+    if (req.file) {
+      filePath = req.file.path;
+      originalName = req.file.originalname;
+      content = await extractText(filePath, originalName);
+      await cacheSourceContent({ userId: req.user.id, fileName: originalName, content });
+    } else {
+      const cached = await getCachedSourceContent({
+        userId: req.user.id,
+        sourceFileName: req.body.sourceFileName,
+      });
+      if (!cached) {
+        return res.status(400).json({ error: 'No file uploaded and no cached source found. Upload the file again.' });
+      }
+      originalName = cached.fileName;
+      content = cached.extractedText;
+    }
     
     // Get options from request body
     const {
@@ -98,9 +136,6 @@ router.post('/upload', generationLimiter, upload.single('file'), async (req, res
       timeLimit = 30
     } = req.body;
 
-    // Extract text from the uploaded file
-    const content = await extractText(filePath, originalName);
-    
     if (content.length < 100) {
       return res.status(400).json({ 
         error: 'The file content is too short to generate a meaningful quiz. Please upload a file with more content.' 
@@ -129,7 +164,7 @@ router.post('/upload', generationLimiter, upload.single('file'), async (req, res
     await quiz.save();
 
     // Clean up temp file
-    deleteTempFile(filePath);
+    if (filePath) deleteTempFile(filePath);
 
     res.status(201).json({
       message: 'Quiz generated successfully!',
@@ -275,12 +310,25 @@ router.post('/flashcards', generationLimiter, upload.single('file'), async (req,
   let filePath = null;
   
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+    let content = '';
+    let originalName = '';
 
-    filePath = req.file.path;
-    const originalName = req.file.originalname;
+    if (req.file) {
+      filePath = req.file.path;
+      originalName = req.file.originalname;
+      content = await extractText(filePath, originalName);
+      await cacheSourceContent({ userId: req.user.id, fileName: originalName, content });
+    } else {
+      const cached = await getCachedSourceContent({
+        userId: req.user.id,
+        sourceFileName: req.body.sourceFileName,
+      });
+      if (!cached) {
+        return res.status(400).json({ error: 'No file uploaded and no cached source found. Upload the file again.' });
+      }
+      originalName = cached.fileName;
+      content = cached.extractedText;
+    }
     
     const {
       numCards = 15,
@@ -288,9 +336,6 @@ router.post('/flashcards', generationLimiter, upload.single('file'), async (req,
       subject = 'General'
     } = req.body;
 
-    // Extract text from the uploaded file
-    const content = await extractText(filePath, originalName);
-    
     if (content.length < 100) {
       return res.status(400).json({ 
         error: 'The file content is too short to generate meaningful flashcards.' 
@@ -318,7 +363,7 @@ router.post('/flashcards', generationLimiter, upload.single('file'), async (req,
     await flashcardSet.save();
 
     // Clean up temp file
-    deleteTempFile(filePath);
+    if (filePath) deleteTempFile(filePath);
 
     res.status(201).json({
       message: 'Flashcards generated successfully!',
@@ -355,21 +400,31 @@ router.post('/mindmap', generationLimiter, upload.single('file'), async (req, re
   let filePath = null;
   
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+    let content = '';
+    let originalName = '';
 
-    filePath = req.file.path;
-    const originalName = req.file.originalname;
+    if (req.file) {
+      filePath = req.file.path;
+      originalName = req.file.originalname;
+      content = await extractText(filePath, originalName);
+      await cacheSourceContent({ userId: req.user.id, fileName: originalName, content });
+    } else {
+      const cached = await getCachedSourceContent({
+        userId: req.user.id,
+        sourceFileName: req.body.sourceFileName,
+      });
+      if (!cached) {
+        return res.status(400).json({ error: 'No file uploaded and no cached source found. Upload the file again.' });
+      }
+      originalName = cached.fileName;
+      content = cached.extractedText;
+    }
     
     const {
       maxDepth = 3,
       subject = 'General'
     } = req.body;
 
-    // Extract text from the uploaded file
-    const content = await extractText(filePath, originalName);
-    
     if (content.length < 100) {
       return res.status(400).json({ 
         error: 'The file content is too short to generate a meaningful mind map.' 
@@ -396,7 +451,7 @@ router.post('/mindmap', generationLimiter, upload.single('file'), async (req, re
     await mindMap.save();
 
     // Clean up temp file
-    deleteTempFile(filePath);
+    if (filePath) deleteTempFile(filePath);
 
     res.status(201).json({
       message: 'Mind map generated successfully!',
@@ -433,12 +488,25 @@ router.post('/audio', generationLimiter, upload.single('file'), async (req, res)
   let filePath = null;
   
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+    let content = '';
+    let originalName = '';
 
-    filePath = req.file.path;
-    const originalName = req.file.originalname;
+    if (req.file) {
+      filePath = req.file.path;
+      originalName = req.file.originalname;
+      content = await extractText(filePath, originalName);
+      await cacheSourceContent({ userId: req.user.id, fileName: originalName, content });
+    } else {
+      const cached = await getCachedSourceContent({
+        userId: req.user.id,
+        sourceFileName: req.body.sourceFileName,
+      });
+      if (!cached) {
+        return res.status(400).json({ error: 'No file uploaded and no cached source found. Upload the file again.' });
+      }
+      originalName = cached.fileName;
+      content = cached.extractedText;
+    }
     
     const {
       style = 'conversational',
@@ -446,9 +514,6 @@ router.post('/audio', generationLimiter, upload.single('file'), async (req, res)
       subject = 'General'
     } = req.body;
 
-    // Extract text from the uploaded file
-    const content = await extractText(filePath, originalName);
-    
     if (content.length < 100) {
       return res.status(400).json({ 
         error: 'The file content is too short to generate meaningful audio notes.' 
@@ -478,7 +543,7 @@ router.post('/audio', generationLimiter, upload.single('file'), async (req, res)
     await audioNotes.save();
 
     // Clean up temp file
-    deleteTempFile(filePath);
+    if (filePath) deleteTempFile(filePath);
 
     res.status(201).json({
       message: 'Audio notes generated successfully!',

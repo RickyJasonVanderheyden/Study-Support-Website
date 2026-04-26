@@ -12,7 +12,32 @@ const { getTextExtractor } = require('office-text-extractor');
 async function extractTextFromPDF(filePath) {
   try {
     const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdfParse(dataBuffer);
+    const originalWarn = console.warn;
+    const originalLog = console.log;
+    const shouldSuppress = (args) => {
+      const message = args.map((item) => String(item)).join(' ');
+      return /TT:\s*undefined function/i.test(message);
+    };
+
+    // Some PDFs trigger noisy pdf.js font warnings like:
+    // "Warning: TT: undefined function: 32"
+    // We suppress only this known non-fatal warning.
+    console.warn = (...args) => {
+      if (shouldSuppress(args)) return;
+      originalWarn(...args);
+    };
+    console.log = (...args) => {
+      if (shouldSuppress(args)) return;
+      originalLog(...args);
+    };
+
+    let data;
+    try {
+      data = await pdfParse(dataBuffer, { verbosityLevel: 0 });
+    } finally {
+      console.warn = originalWarn;
+      console.log = originalLog;
+    }
     
     if (!data.text || data.text.trim().length === 0) {
       throw new Error('No text content found in PDF');

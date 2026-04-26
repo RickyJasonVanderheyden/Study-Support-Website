@@ -2,8 +2,10 @@ const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 const express = require('express');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const User = require('./models/User');
 
 // Load environment variables
 dotenv.config({ override: true });
@@ -17,6 +19,32 @@ const ALLOWED_ORIGINS = (process.env.FRONTEND_URLS || FRONTEND_URL)
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+const DEFAULT_SUPER_ADMIN_EMAIL = String(process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'superadmin@co.in').trim().toLowerCase();
+const DEFAULT_SUPER_ADMIN_PASSWORD = String(process.env.DEFAULT_SUPER_ADMIN_PASSWORD || 'admin1234').trim();
+
+const ensureDefaultSuperAdmin = async () => {
+  if (!DEFAULT_SUPER_ADMIN_EMAIL || !DEFAULT_SUPER_ADMIN_PASSWORD) return;
+
+  const hashedPassword = await bcrypt.hash(DEFAULT_SUPER_ADMIN_PASSWORD, 10);
+  await User.updateOne(
+    { email: DEFAULT_SUPER_ADMIN_EMAIL },
+    {
+      $set: {
+        name: 'Master Boss',
+        email: DEFAULT_SUPER_ADMIN_EMAIL,
+        password: hashedPassword,
+        registrationNumber: 'ADMIN0000',
+        role: 'super_admin',
+        roleRequest: 'none',
+        isActivated: true,
+      },
+    },
+    { upsert: true }
+  );
+
+  console.log(`Default Super Admin ready: ${DEFAULT_SUPER_ADMIN_EMAIL}`);
+};
 
 // Middleware
 app.use(
@@ -54,6 +82,10 @@ if (!MONGODB_URI || MONGODB_URI.includes('your_mongodb_connection_string')) {
     .then(() => {
       console.log('✅ MongoDB connected successfully');
       console.log(`🗄️ MongoDB database: ${mongoose.connection.db?.databaseName || 'unknown'}`);
+      return ensureDefaultSuperAdmin();
+    })
+    .then(() => {
+      console.log('✅ Super Admin bootstrap check complete');
     })
     .catch(err => {
       console.error('❌ MongoDB connection error:', err.message);
@@ -88,6 +120,7 @@ app.use('/api/module2/progress', require('./routes/QuizBuilderPDF/progress'));
 app.use('/api/module3/sessions', require('./routes/peer sessions/sessions'));
 app.use('/api/module3/bookings', require('./routes/peer sessions/bookings'));
 app.use('/api/module3/ratings', require('./routes/peer sessions/ratings'));
+app.use('/api/module3/study-buddy', require('./routes/peer sessions/studyBuddy'));
 
 // Module 4 routes (Member 4)
 app.use('/api/module4/groups', require('./routes/MemberFinder/groups'));
