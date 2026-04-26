@@ -101,6 +101,7 @@ app.use('/api/module2/progress', require('./routes/QuizBuilderPDF/progress'));
 app.use('/api/module3/sessions', require('./routes/peer sessions/sessions'));
 app.use('/api/module3/bookings', require('./routes/peer sessions/bookings'));
 app.use('/api/module3/ratings', require('./routes/peer sessions/ratings'));
+app.use('/api/module3/study-buddy', require('./routes/peer sessions/studyBuddy'));
 
 // Module 4 routes (Member 4)
 app.use('/api/module4/groups', require('./routes/MemberFinder/groups'));
