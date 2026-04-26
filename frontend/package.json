@@ -27,6 +27,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:e2e": "playwright test",
+    "test:e2e:functional": "playwright test \"e2e/.*\\.functional\\.spec\\.js\"",
+    "test:e2e:functional:module3": "playwright test e2e/module3-frontend.functional.spec.js",
+    "test:e2e:functional:auth": "playwright test e2e/auth-frontend.functional.spec.js",
+    "test:e2e:headed": "playwright test --headed",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -48,6 +53,7 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "^1.53.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.19",
     "autoprefixer": "^10.4.24",
