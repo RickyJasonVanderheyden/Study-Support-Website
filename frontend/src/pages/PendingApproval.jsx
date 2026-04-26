@@ -27,7 +27,7 @@ const PendingApproval = () => {
           navigate('/module3');
         } else if (data.role === 'super_admin') {
           toast.success('Approved.', { id: toastId });
-          navigate('/super-admin-dashboard');
+          navigate('/admin');
         } else {
           toast.success('Approved.', { id: toastId });
           navigate('/module3');

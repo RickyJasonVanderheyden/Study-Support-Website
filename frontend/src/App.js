@@ -1,16 +1,12 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
 import BossAdminLogin from './pages/BossAdminLogin';
-import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import SessionLeadLogin from './pages/SessionLeadLogin';
 import Register from './pages/Register';
-import AdminLogin from './pages/AdminLogin';
-import AdminRegister from './pages/AdminRegister';
-import InstructorLogin from './pages/InstructorLogin';
-import InstructorRegister from './pages/InstructorRegister';
 import PendingApproval from './pages/PendingApproval';
 import Module1Page from './pages/Module1Page';
 import Module2Page from './pages/Module2Page';
@@ -33,6 +29,7 @@ const ROUTES_NO_SESSION_LEAD_GATE = new Set([
   '/register',
   '/pending-approval',
   '/boss-admin-login',
+  '/session-lead-login',
 ]);
 
 function SessionLeadAccessGuard() {
@@ -67,6 +64,54 @@ function SessionLeadAccessGuard() {
   return null;
 }
 
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function RootRedirect() {
+  const user = getStoredUser();
+  const token = localStorage.getItem('token');
+
+  if (!user || !token) return <Navigate to="/login" replace />;
+  if (user.role === 'admin' || user.role === 'super_admin') return <Navigate to="/admin" replace />;
+  return <Navigate to="/module3" replace />;
+}
+
+function AdminOnlyRoute({ children }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    let user = null;
+    try {
+      const raw = localStorage.getItem('user');
+      if (raw) user = JSON.parse(raw);
+    } catch {
+      user = null;
+    }
+
+    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+      navigate('/module3', { replace: true, state: { from: location.pathname } });
+    }
+  }, [navigate, location.pathname]);
+
+  let user = null;
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) user = JSON.parse(raw);
+  } catch {
+    user = null;
+  }
+
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) return null;
+  return children;
+}
+
 function App() {
   const AuthenticatedLayout = ({ children }) => (
     <Layout>
@@ -79,22 +124,22 @@ function App() {
       <SessionLeadAccessGuard />
       <div className="min-h-screen">
         <Routes>
-          <Route path="/" element={<AuthenticatedLayout><Home /></AuthenticatedLayout>} />
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="/home" element={<AuthenticatedLayout><Home /></AuthenticatedLayout>} />
 
           {/* Student Auth */}
           <Route path="/login" element={<Login />} />
           <Route path="/boss-admin-login" element={<BossAdminLogin />} />
-          <Route path="/super-admin-dashboard" element={<SuperAdminDashboard />} />
+          <Route path="/session-lead-login" element={<SessionLeadLogin />} />
+          <Route path="/super-admin-dashboard" element={<Navigate to="/admin" replace />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
 
-          {/* Admin Auth */}
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/register" element={<AdminRegister />} />
-
-          {/* Instructor Auth */}
-          <Route path="/instructor/login" element={<InstructorLogin />} />
-          <Route path="/instructor/register" element={<InstructorRegister />} />
+          {/* Legacy Auth URLs -> Unified Auth */}
+          <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+          <Route path="/admin/register" element={<Navigate to="/register" replace />} />
+          <Route path="/instructor/login" element={<Navigate to="/login" replace />} />
+          <Route path="/instructor/register" element={<Navigate to="/register" replace />} />
 
           <Route path="/module1" element={<AuthenticatedLayout><Module1Page /></AuthenticatedLayout>} />
           <Route path="/module2" element={<AuthenticatedLayout><Module2Page /></AuthenticatedLayout>} />
@@ -108,7 +153,7 @@ function App() {
           <Route path="/module4" element={<AuthenticatedLayout><Module4Page /></AuthenticatedLayout>} />
           <Route path="/module4/group/:id" element={<AuthenticatedLayout><GroupDetail /></AuthenticatedLayout>} />
           <Route path="/profile" element={<AuthenticatedLayout><Profile /></AuthenticatedLayout>} />
-          <Route path="/admin" element={<AuthenticatedLayout><AdminPanel /></AuthenticatedLayout>} />
+          <Route path="/admin" element={<AdminOnlyRoute><AuthenticatedLayout><AdminPanel /></AuthenticatedLayout></AdminOnlyRoute>} />
         </Routes>
       </div>
       <Toaster position="top-right" />

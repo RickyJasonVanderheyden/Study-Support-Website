@@ -197,12 +197,29 @@ const AudioNotesView = () => {
     return paras;
   };
 
+  const normalizeForSpeech = useCallback((text) => {
+    return String(text || '')
+      // Remove markdown emphasis and heading symbols that TTS may read aloud.
+      .replace(/[*_`#~]/g, ' ')
+      // Replace bullet-like characters with pauses.
+      .replace(/[•▪◦●]/g, '. ')
+      // Convert long ellipsis to a short pause.
+      .replace(/\.{2,}/g, '. ')
+      // Remove bracket-heavy artifacts that sound unnatural in speech.
+      .replace(/[\[\]{}<>]/g, ' ')
+      // Collapse repeated separators and whitespace.
+      .replace(/[|]{2,}/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }, []);
+
   const splitTextIntoChunks = useCallback((text) => {
-    const paras = splitIntoParagraphs(text);
+    const speechText = normalizeForSpeech(text);
+    const paras = splitIntoParagraphs(speechText);
     setParagraphs(paras);
     chunkToParagraphMap.current = paras.map((_, i) => i);
     return paras;
-  }, []);
+  }, [normalizeForSpeech]);
 
   useEffect(() => {
     if (audioNotes?.script) {
@@ -761,20 +778,20 @@ const AudioNotesView = () => {
             
             <div className="flex-1 flex flex-col bg-[#F7F4EE] rounded-2xl border border-[#C2E0C6] shadow-sm min-h-0 overflow-hidden">
               {/* Input row */}
-            <div className="audio-qa-section flex items-center gap-0 border-b border-[#D8E8DC]">
+            <div className="audio-qa-section flex items-center h-11 border-b border-[#D8E8DC] bg-white">
                 <input
                   type="text"
                   value={aiQuestion}
                   onChange={(e) => setAiQuestion(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAskAI()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
                   placeholder="Ask anything about this content..."
-                  className="flex-1 px-3 py-2.5 bg-white text-sm focus:outline-none placeholder:text-gray-400 rounded-tl-2xl"
+                  className="flex-1 h-full px-3 bg-transparent text-sm border-0 focus:outline-none focus:ring-0 placeholder:text-gray-400 rounded-tl-2xl"
                   disabled={aiLoading}
                 />
                 <button
                   onClick={handleAskAI}
                   disabled={aiLoading || !aiQuestion.trim()}
-                  className="px-3 py-2.5 bg-gradient-to-r from-[#1E4D35] to-[#2E5C42] text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all rounded-tr-2xl flex-shrink-0"
+                  className="h-full w-11 inline-flex items-center justify-center bg-gradient-to-r from-[#1E4D35] to-[#2E5C42] text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all rounded-tr-2xl flex-shrink-0"
                 >
                   {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </button>

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Shield, Users, Mail, CreditCard, Search, Trash2, CheckCircle, Clock, LayoutGrid, Edit, X, Save } from 'lucide-react';
+import { UserPlus, Shield, Users, Mail, CreditCard, Trash2, CheckCircle, Clock, LayoutGrid, Edit, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../components/common/Button';
 import API from '../services/api';
@@ -12,6 +12,12 @@ const AdminPanel = () => {
     const [stats, setStats] = useState({ total: 0, activated: 0, pending: 0 });
     const [users, setUsers] = useState([]);
     const [groups, setGroups] = useState([]);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [leadRequestLoading, setLeadRequestLoading] = useState(false);
+    const [leadRequestTab, setLeadRequestTab] = useState('pending');
+    const [pendingLeadRequests, setPendingLeadRequests] = useState([]);
+    const [approvedLeadRequests, setApprovedLeadRequests] = useState([]);
+    const [rejectedLeadRequests, setRejectedLeadRequests] = useState([]);
     const [editingGroup, setEditingGroup] = useState(null);
     const [editingUser, setEditingUser] = useState(null);
     const [formData, setFormData] = useState({
@@ -19,16 +25,6 @@ const AdminPanel = () => {
         registrationNumber: '',
         role: 'student'
     });
-
-    useEffect(() => {
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-            navigate('/');
-            return;
-        }
-        fetchUsers();
-        fetchGroups();
-    }, [navigate]);
 
     const fetchUsers = async () => {
         try {
@@ -53,6 +49,60 @@ const AdminPanel = () => {
             console.error('Error fetching groups:', err);
         }
     };
+
+    const fetchLeadRequests = useCallback(async () => {
+        if (!isSuperAdmin && JSON.parse(localStorage.getItem('user') || '{}')?.role !== 'super_admin') return;
+        setLeadRequestLoading(true);
+        try {
+            const [{ data: pending }, { data: approved }, { data: rejected }] = await Promise.all([
+                API.get('/admin/requests'),
+                API.get('/admin/approved'),
+                API.get('/admin/rejected'),
+            ]);
+            setPendingLeadRequests(pending || []);
+            setApprovedLeadRequests(approved || []);
+            setRejectedLeadRequests(rejected || []);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to load Session Lead requests');
+        } finally {
+            setLeadRequestLoading(false);
+        }
+    }, [isSuperAdmin]);
+
+    const handleApproveLead = async (userId) => {
+        try {
+            const { data } = await API.patch('/admin/approve', { userId });
+            toast.success(data.message || 'Request approved');
+            await Promise.all([fetchLeadRequests(), fetchUsers()]);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to approve request');
+        }
+    };
+
+    const handleRejectLead = async (userId) => {
+        if (!window.confirm('Are you sure you want to reject this request?')) return;
+        try {
+            const { data } = await API.patch('/admin/reject', { userId });
+            toast.success(data.message || 'Request rejected');
+            await Promise.all([fetchLeadRequests(), fetchUsers()]);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to reject request');
+        }
+    };
+
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+            navigate('/');
+            return;
+        }
+        setIsSuperAdmin(user.role === 'super_admin');
+        fetchUsers();
+        fetchGroups();
+        if (user.role === 'super_admin') {
+            fetchLeadRequests();
+        }
+    }, [navigate, fetchLeadRequests]);
 
     const deleteUser = async (id) => {
         if (!window.confirm('Are you sure you want to remove this user?')) return;
@@ -210,6 +260,15 @@ const AdminPanel = () => {
                         <LayoutGrid size={16} />
                         Groups
                     </button>
+                    {isSuperAdmin && (
+                        <button
+                            onClick={() => setActiveTab('lead-requests')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'lead-requests' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <Clock size={16} />
+                            Lead Requests
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -480,6 +539,121 @@ const AdminPanel = () => {
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
+            ) : activeTab === 'lead-requests' ? (
+                <div className="space-y-6 text-left">
+                    <div className="flex bg-gray-100 p-1 rounded-xl w-fit">
+                        <button
+                            onClick={() => setLeadRequestTab('pending')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${leadRequestTab === 'pending' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Pending
+                        </button>
+                        <button
+                            onClick={() => setLeadRequestTab('approved')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${leadRequestTab === 'approved' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Approved
+                        </button>
+                        <button
+                            onClick={() => setLeadRequestTab('rejected')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${leadRequestTab === 'rejected' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Rejected
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                            <p className="text-xs font-bold text-gray-400 uppercase">Pending</p>
+                            <p className="text-2xl font-black text-amber-600 mt-1">{pendingLeadRequests.length}</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                            <p className="text-xs font-bold text-gray-400 uppercase">Approved</p>
+                            <p className="text-2xl font-black text-emerald-600 mt-1">{approvedLeadRequests.length}</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                            <p className="text-xs font-bold text-gray-400 uppercase">Rejected</p>
+                            <p className="text-2xl font-black text-red-600 mt-1">{rejectedLeadRequests.length}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
+                            <h3 className="font-bold text-gray-900">
+                                {leadRequestTab === 'pending'
+                                    ? 'Pending Session Lead Requests'
+                                    : leadRequestTab === 'approved'
+                                        ? 'Approved Session Lead Requests'
+                                        : 'Rejected Session Lead Requests'}
+                            </h3>
+                            <button
+                                onClick={fetchLeadRequests}
+                                className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                            >
+                                Refresh
+                            </button>
+                        </div>
+
+                        {leadRequestLoading ? (
+                            <div className="px-6 py-8 text-sm text-gray-500">Loading requests...</div>
+                        ) : (leadRequestTab === 'pending' ? pendingLeadRequests : leadRequestTab === 'approved' ? approvedLeadRequests : rejectedLeadRequests).length === 0 ? (
+                            <div className="px-6 py-8 text-sm text-gray-500">
+                                {leadRequestTab === 'pending'
+                                    ? 'No pending requests.'
+                                    : leadRequestTab === 'approved'
+                                        ? 'No approved requests.'
+                                        : 'No rejected requests.'}
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 uppercase text-[10px] font-bold">
+                                        <tr>
+                                            <th className="px-6 py-3">User</th>
+                                            <th className="px-6 py-3">ID Number</th>
+                                            <th className="px-6 py-3">Requested At</th>
+                                            <th className="px-6 py-3 text-right">{leadRequestTab === 'pending' ? 'Actions' : 'Status'}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {(leadRequestTab === 'pending' ? pendingLeadRequests : leadRequestTab === 'approved' ? approvedLeadRequests : rejectedLeadRequests).map((req) => (
+                                            <tr key={req._id} className="hover:bg-gray-50/60 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <p className="font-semibold text-gray-900">{req.name || 'Pending Name'}</p>
+                                                    <p className="text-xs text-gray-400">{req.email}</p>
+                                                </td>
+                                                <td className="px-6 py-4 font-mono text-xs">{req.registrationNumber}</td>
+                                                <td className="px-6 py-4 text-xs text-gray-500">{new Date(req.createdAt).toLocaleString()}</td>
+                                                <td className="px-6 py-4 text-right">
+                                                    {leadRequestTab === 'pending' ? (
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <button
+                                                                onClick={() => handleRejectLead(req._id)}
+                                                                className="px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleApproveLead(req._id)}
+                                                                className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
+                                                            >
+                                                                Approve
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className={`px-3 py-1.5 text-xs font-bold rounded-full ${leadRequestTab === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                            {leadRequestTab === 'approved' ? 'APPROVED' : 'REJECTED'}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
             ) : (

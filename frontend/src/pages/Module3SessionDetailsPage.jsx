@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import SiteFooter from '../components/layout/SiteFooter';
 import API from '../services/api';
 
 const initialJoinForm = { studentName: '', studentEmail: '' };
@@ -89,11 +90,13 @@ const Module3SessionDetailsPage = () => {
   const [prepForm, setPrepForm] = useState(initialPrepForm);
   const [prepLoading, setPrepLoading] = useState(false);
   const [prepSaving, setPrepSaving] = useState(false);
+  const [publishingSharedPrep, setPublishingSharedPrep] = useState(false);
   const [prepHistoryLoading, setPrepHistoryLoading] = useState(false);
   const [studyPrep, setStudyPrep] = useState(null);
   const [savedPreps, setSavedPreps] = useState([]);
   const [userRole, setUserRole] = useState('student');
   const [userEmail, setUserEmail] = useState('');
+  const isLeadViewer = userRole === 'session_lead' || userRole === 'super_admin';
 
   const isSessionHost = useMemo(() => {
     if (!sessionDetail || !userEmail) return false;
@@ -224,6 +227,30 @@ const Module3SessionDetailsPage = () => {
       toast.error(error.response?.data?.error || 'Failed to save prep');
     } finally {
       setPrepSaving(false);
+    }
+  };
+
+  const handlePublishSharedPrep = async () => {
+    if (!studyPrep) {
+      toast.error('Generate prep first');
+      return;
+    }
+    setPublishingSharedPrep(true);
+    try {
+      const { data } = await API.post('/module3/study-buddy/prep/publish', {
+        sessionId: id,
+        prep: studyPrep,
+        source: studyPrep.source,
+      });
+      setSessionDetail((prev) => ({
+        ...prev,
+        leadSharedPrep: data.leadSharedPrep,
+      }));
+      toast.success('Shared prep published for attendees');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to publish shared prep');
+    } finally {
+      setPublishingSharedPrep(false);
     }
   };
 
@@ -416,11 +443,78 @@ const Module3SessionDetailsPage = () => {
                   </div>
                 </div>
 
+                {sessionDetail?.leadSharedPrep?.publishedAt && (
+                  <div className="space-y-4 pt-6 border-t border-slate-100">
+                    <div className="bg-gradient-to-r from-[#1D4ED8] to-[#0F766E] text-white p-4 rounded-lg">
+                      <h3 className="text-xl font-bold">Session Lead Shared Prep</h3>
+                      <p className="text-sm opacity-90 mt-1">
+                        Published by {sessionDetail.leadSharedPrep.publishedByName || 'Session Lead'} | {formatDateTime(sessionDetail.leadSharedPrep.publishedAt)}
+                      </p>
+                    </div>
+                    <div className="border border-blue-100 rounded-lg p-4 bg-blue-50/30 space-y-3">
+                      <h4 className="text-lg font-bold text-[#0F766E]">{sessionDetail.leadSharedPrep.title || 'Shared Study Prep'}</h4>
+                      {sessionDetail.leadSharedPrep.overview && (
+                        <p className="text-sm text-slate-700 bg-white rounded p-3 border border-blue-100">{sessionDetail.leadSharedPrep.overview}</p>
+                      )}
+                      {Array.isArray(sessionDetail.leadSharedPrep.revisionGoals) && sessionDetail.leadSharedPrep.revisionGoals.length > 0 && (
+                        <ul className="space-y-2">
+                          {sessionDetail.leadSharedPrep.revisionGoals.map((goal, index) => (
+                            <li key={`${goal}-${index}`} className="text-sm bg-white border border-blue-100 rounded p-3">
+                              {index + 1}. {goal}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {!sessionDetail?.leadSharedPrep?.publishedAt && !isSessionHost && (
+                  <div className="space-y-3 pt-6 border-t border-slate-100">
+                    <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-4">
+                      <h3 className="text-base font-bold text-[#1D4ED8]">Shared Prep Not Published Yet</h3>
+                      <p className="text-sm text-slate-700 mt-1">
+                        Once the session lead publishes prep, it will appear here for all students.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* AI Study Buddy Prep */}
                 <div className="space-y-4 pt-6 border-t border-slate-100">
                   <div className="bg-gradient-to-r from-[#0F766E] to-[#155E75] text-white p-4 rounded-lg">
-                    <h3 className="text-xl font-bold">AI Study Buddy Prep</h3>
-                    <p className="text-sm opacity-90 mt-1">Generate a focused prep plan before joining this session</p>
+                    <h3 className="text-xl font-bold">
+                      {isLeadViewer ? 'AI Study Buddy - Session Lead Mode' : 'AI Study Buddy - Student Mode'}
+                    </h3>
+                    <p className="text-sm opacity-90 mt-1">
+                      {isLeadViewer
+                        ? 'Generate prep, save your own version, and publish one shared prep for attendees.'
+                        : 'Generate your personal prep plan before joining the session.'}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="rounded-lg border border-teal-100 bg-teal-50/40 p-3">
+                      <p className="text-xs font-black text-[#0F766E] uppercase tracking-wide">Step 1</p>
+                      <p className="text-sm font-semibold text-slate-800 mt-1">Enter focus topics</p>
+                      <p className="text-xs text-slate-600 mt-1">Add topics, level, and goal for better prep quality.</p>
+                    </div>
+                    <div className="rounded-lg border border-teal-100 bg-teal-50/40 p-3">
+                      <p className="text-xs font-black text-[#0F766E] uppercase tracking-wide">Step 2</p>
+                      <p className="text-sm font-semibold text-slate-800 mt-1">Generate AI prep</p>
+                      <p className="text-xs text-slate-600 mt-1">Get overview, goals, likely questions, and study plan.</p>
+                    </div>
+                    <div className="rounded-lg border border-teal-100 bg-teal-50/40 p-3">
+                      <p className="text-xs font-black text-[#0F766E] uppercase tracking-wide">Step 3</p>
+                      <p className="text-sm font-semibold text-slate-800 mt-1">
+                        {isLeadViewer ? 'Publish for students' : 'Save for later'}
+                      </p>
+                      <p className="text-xs text-slate-600 mt-1">
+                        {isLeadViewer
+                          ? 'Use "Publish for attendees" to share one final prep with everyone.'
+                          : 'Use "Save Prep" to keep this in your personal prep history.'}
+                      </p>
+                    </div>
                   </div>
 
                   <form onSubmit={handleGeneratePrep} className="space-y-4 bg-white p-4 rounded-lg border border-slate-100">
@@ -471,7 +565,7 @@ const Module3SessionDetailsPage = () => {
                       className="bg-[#0F766E] hover:bg-[#115E59] text-white font-bold w-full py-3 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={prepLoading}
                     >
-                      {prepLoading ? 'Generating prep...' : 'Generate Study Buddy Prep'}
+                      {prepLoading ? 'Generating prep...' : isLeadViewer ? 'Generate Lead Prep Draft' : 'Generate My Prep'}
                     </Button>
                   </form>
 
@@ -492,7 +586,7 @@ const Module3SessionDetailsPage = () => {
                           onClick={handleSavePrep}
                           disabled={prepSaving}
                         >
-                          {prepSaving ? 'Saving...' : 'Save Prep'}
+                          {prepSaving ? 'Saving...' : isLeadViewer ? 'Save Lead Draft' : 'Save Prep'}
                         </Button>
                         <Button
                           type="button"
@@ -501,6 +595,16 @@ const Module3SessionDetailsPage = () => {
                         >
                           Download as PDF
                         </Button>
+                        {isSessionHost && (
+                          <Button
+                            type="button"
+                            className="bg-[#1D4ED8] border border-[#1D4ED8] text-white hover:bg-[#1E40AF] font-bold py-2 px-4"
+                            onClick={handlePublishSharedPrep}
+                            disabled={publishingSharedPrep}
+                          >
+                            {publishingSharedPrep ? 'Publishing...' : 'Publish for attendees'}
+                          </Button>
+                        )}
                       </div>
 
                       {studyPrep.overview && (
@@ -570,7 +674,7 @@ const Module3SessionDetailsPage = () => {
 
                   <div className="border border-teal-100 rounded-lg p-4 bg-white space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-base font-bold text-[#0F766E]">Saved Preps</h4>
+                      <h4 className="text-base font-bold text-[#0F766E]">My Prep History</h4>
                       <Button
                         type="button"
                         size="sm"
@@ -629,7 +733,7 @@ const Module3SessionDetailsPage = () => {
                     </div>
                   </div>
                 ) : (
-                  userRole !== 'admin' && (
+                  userRole === 'student' && (
                     <div className="space-y-4 pt-6 border-t border-slate-100">
                     <div className="bg-gradient-to-r from-[#276332] to-[#556B2F] text-white p-4 rounded-lg">
                         <h3 className="text-xl font-bold">
@@ -797,6 +901,11 @@ const Module3SessionDetailsPage = () => {
             </div>
           </div>
         )}
+
+      </div>
+
+      <div className="mt-8" style={{ position: 'relative', zIndex: 20, backgroundColor: '#173e1f' }}>
+        <SiteFooter />
       </div>
     </div>
   );

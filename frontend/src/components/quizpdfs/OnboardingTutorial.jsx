@@ -66,11 +66,13 @@ const OnboardingTutorial = ({ onClose }) => {
       if (element) {
         const rect = element.getBoundingClientRect();
         setElementRect({
-          top: rect.top + window.scrollY,
-          left: rect.left + window.scrollX,
+          top: rect.top,
+          left: rect.left,
           width: rect.width,
           height: rect.height
         });
+      } else {
+        setElementRect(null);
       }
     };
 
@@ -80,10 +82,12 @@ const OnboardingTutorial = ({ onClose }) => {
     // Retry after a delay for elements that might load late
     const timer = setTimeout(updateElementPosition, 500);
     window.addEventListener('resize', updateElementPosition);
+    window.addEventListener('scroll', updateElementPosition, true);
 
     return () => {
       clearTimeout(timer);
       window.removeEventListener('resize', updateElementPosition);
+      window.removeEventListener('scroll', updateElementPosition, true);
     };
   }, [currentStep_data.selector]);
 
@@ -162,15 +166,15 @@ const OnboardingTutorial = ({ onClose }) => {
       )}
 
       {/* Tooltip with info */}
-      {elementRect && (
+      {elementRect ? (
         <div
           className="fixed z-50 bg-white rounded-2xl shadow-2xl p-6 max-w-sm"
           style={{
             top:
               currentStep_data.position === 'bottom'
-                ? elementRect.top + elementRect.height + 20
+                ? Math.min(window.innerHeight - 260, elementRect.top + elementRect.height + 20)
                 : Math.max(20, elementRect.top - 220),
-            left: Math.max(20, elementRect.left + elementRect.width / 2 - 200)
+            left: Math.max(20, Math.min(window.innerWidth - 420, elementRect.left + elementRect.width / 2 - 200))
           }}
         >
           {/* Arrow pointing to element */}
@@ -260,6 +264,50 @@ const OnboardingTutorial = ({ onClose }) => {
               <X className="w-5 h-5" />
             </button>
           </div>
+        </div>
+      ) : (
+        <div
+          className="fixed z-50 bg-white rounded-2xl shadow-2xl p-6 max-w-sm"
+          style={{
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        >
+          <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#1E4D35' }}>
+            Step {currentStep + 1} of {tutorialSteps.length}
+          </div>
+          <h3 className="text-lg font-bold mb-2" style={{ color: '#1A2E23' }}>
+            {currentStep_data.title}
+          </h3>
+          <p className="text-sm leading-relaxed mb-4" style={{ color: '#3D5246' }}>
+            {currentStep_data.description}
+          </p>
+          <div className="flex justify-end gap-2">
+            {currentStep > 0 && (
+              <button
+                onClick={handlePrev}
+                className="px-3 py-2 rounded-lg text-sm font-medium"
+                style={{ background: 'rgba(232, 130, 12, 0.1)', color: '#E8820C' }}
+              >
+                Previous
+              </button>
+            )}
+            <button
+              onClick={handleNext}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+              style={{ background: '#E8820C' }}
+            >
+              {isLastStep ? 'Finish' : 'Next'}
+            </button>
+          </div>
+          <button
+            onClick={handleSkip}
+            className="absolute top-3 right-3 p-1 rounded-lg transition-colors"
+            style={{ color: '#7A9080' }}
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
 

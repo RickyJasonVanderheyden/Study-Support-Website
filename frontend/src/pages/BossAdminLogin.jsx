@@ -6,8 +6,8 @@ import API from '../services/api';
 
 const BossAdminLogin = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('superadmin@co.in');
+  const [password, setPassword] = useState('admin1234');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (event) => {
@@ -15,7 +15,7 @@ const BossAdminLogin = () => {
     setLoading(true);
 
     try {
-      const { data } = await API.post('/auth/login', { email, password });
+      const { data } = await API.post('/auth/login', { email: email.trim().toLowerCase(), password });
       const { user, token } = data;
       
       if (user.role !== 'super_admin') {
@@ -27,7 +27,7 @@ const BossAdminLogin = () => {
       toast.success('System override granted. Welcome, Terminal Operator.', { icon: '🔑' });
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      navigate('/');
+      navigate('/admin');
     } catch (error) {
       toast.error(error.response?.data?.error || 'Authentication failure: Check credentials');
     } finally {
@@ -119,10 +119,10 @@ const BossAdminLogin = () => {
               <button
                 type="button"
                 className="text-[9px] font-black text-amber-500/50 hover:text-amber-500 transition-all uppercase tracking-[0.2em] flex items-center gap-2 group"
-                onClick={() => navigate('/admin/register')}
+                onClick={() => navigate('/register')}
               >
                 <Database size={10} className="group-hover:scale-110 transition-transform" />
-                Enroll New Administrator
+                Student Registration
               </button>
 
               <button

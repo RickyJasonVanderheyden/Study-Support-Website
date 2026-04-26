@@ -447,17 +447,19 @@ const Module2Page = () => {
 
   // Handle generate button click - show modal for quiz/flashcards
   const handleGenerateClick = (type) => {
-    if (!file) {
+    if (!file && !savedFileName) {
       toast.error('Please upload a file first');
       return;
     }
 
     // Validate file still exists and is valid
-    const fileValidation = validateFile(file);
-    if (!fileValidation.valid) {
-      toast.error(fileValidation.error);
-      removeFile();
-      return;
+    if (file) {
+      const fileValidation = validateFile(file);
+      if (!fileValidation.valid) {
+        toast.error(fileValidation.error);
+        removeFile();
+        return;
+      }
     }
 
     if (type === 'quiz' || type === 'flashcards') {
@@ -470,7 +472,7 @@ const Module2Page = () => {
 
   // Generate content
   const handleGenerate = async (type) => {
-    if (!file) {
+    if (!file && !savedFileName) {
       toast.error('Please upload a file first');
       return;
     }
@@ -480,7 +482,11 @@ const Module2Page = () => {
     setGenerationType(type);
 
     const formData = new FormData();
-    formData.append('file', file);
+    if (file) {
+      formData.append('file', file);
+    } else if (savedFileName) {
+      formData.append('sourceFileName', savedFileName);
+    }
     formData.append('subject', options.subject || 'General');
     formData.append('difficulty', options.difficulty);
     formData.append('numQuestions', options.numQuestions);
@@ -543,7 +549,16 @@ const Module2Page = () => {
       } else if (error.response?.status === 413) {
         errorMessage = 'File is too large for the server to process. Try with a smaller document.';
       } else if (error.response?.status === 400) {
-        errorMessage = error.response?.data?.error || `Invalid ${type} parameters. Please check your inputs and try again.`;
+        const backendError = error.response?.data?.error || '';
+        if (
+          savedFileName &&
+          (backendError.toLowerCase().includes('no file uploaded') ||
+            backendError.toLowerCase().includes('no cached source found'))
+        ) {
+          errorMessage = `Please upload "${savedFileName}" once more, then you can generate all other types from it.`;
+        } else {
+          errorMessage = backendError || `Invalid ${type} parameters. Please check your inputs and try again.`;
+        }
       } else if (error.response?.status === 500) {
         errorMessage = `Server error while generating ${type}. Please try again in a moment.`;
       } else if (error.response?.data?.error) {
@@ -1104,14 +1119,14 @@ const Module2Page = () => {
                   </div>
                 </div>
               ) : !file && hasGeneratedContent ? (
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+                <div className="file-upload-area flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-white rounded-lg shadow-sm">
                       <CheckCircle2 className="w-5 h-5 text-orange-500" />
                     </div>
                     <div>
                       <p className="font-medium text-gray-900 text-sm">{savedFileName || 'Previous document'}</p>
-                      <p className="text-xs text-orange-600">Content generated - view below or upload new file</p>
+                      <p className="text-xs text-orange-600">Content generated - you can now generate other types from this same file or upload a new file</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1137,7 +1152,7 @@ const Module2Page = () => {
                   />
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+                <div className="file-upload-area flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-white rounded-lg shadow-sm">
                       <FileText className="w-5 h-5 text-orange-500" />
@@ -1194,7 +1209,7 @@ const Module2Page = () => {
                   const isGenerating = generating && generationType === type.id;
                   const isGenerated = !!generatedContent[type.id];
                   const generatedId = getGeneratedId(type.id);
-                  const canGenerate = !!file;
+                  const canGenerate = !!file || (!!savedFileName && hasGeneratedContent);
                   const toolClass =
                     type.id === 'quiz'
                       ? 'tool-quiz'

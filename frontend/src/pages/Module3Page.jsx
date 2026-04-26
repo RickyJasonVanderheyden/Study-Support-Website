@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Card from '../components/common/Card'; 
 import Button from '../components/common/Button';
+import SiteFooter from '../components/layout/SiteFooter';
 import API from '../services/api';
 
 const PAGE_SIZE = 6;
@@ -517,16 +518,6 @@ const Module3Page = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#EAF4ED] to-[#FDFCF9] p-6 md:p-8 text-slate-800 font-sans">
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex justify-end mb-2">
-          <Button
-            variant="secondary"
-            className="bg-white border-2 border-[#276332] text-[#276332] hover:bg-[#556B2F] hover:text-white hover:border-[#556B2F] font-bold shadow-md px-6 py-2 rounded-lg transition-colors"
-            onClick={() => navigate(-1)}
-          >
-            Go Back
-          </Button>
-        </div>
-        
         <div className="relative w-full rounded-[2.5rem] bg-gradient-to-r from-[#173e1f] to-[#1e5027] overflow-hidden shadow-2xl mb-12 mt-4 flex min-h-[380px] group/banner">
           {/* Decorative background shapes */}
           <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
@@ -649,6 +640,11 @@ const Module3Page = () => {
             </>
           )}
         </div>
+
+      </div>
+
+      <div className="mt-10" style={{ position: 'relative', zIndex: 20, backgroundColor: '#173e1f' }}>
+        <SiteFooter />
       </div>
     </div>
   );
