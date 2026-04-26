@@ -21,6 +21,11 @@ const getItDigitsFromRegNo = (value) => {
   const match = String(value || '').trim().match(/^IT(\d{8})$/i);
   return match ? match[1] : null;
 };
+const AUTH_DEBUG = String(process.env.AUTH_DEBUG || '').trim().toLowerCase() === 'true';
+const authDebugLog = (stage, details = {}) => {
+  if (!AUTH_DEBUG) return;
+  console.log(`[AUTH_DEBUG] ${stage}`, details);
+};
 
 // Register
 router.post('/register', async (req, res) => {
@@ -96,21 +101,43 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     const normalizedEmail = String(email || '').trim().toLowerCase();
+    authDebugLog('login_attempt', {
+      email: normalizedEmail,
+      passwordProvided: Boolean(password),
+    });
+
     if (!isSliitEmail(normalizedEmail) && !isAdminEmail(normalizedEmail)) {
+      authDebugLog('login_rejected_invalid_email_format', { email: normalizedEmail });
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const user = await User.findOne({ email: normalizedEmail }).select('+password');
     if (!user) {
+      authDebugLog('login_rejected_user_not_found', { email: normalizedEmail });
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      authDebugLog('login_rejected_password_mismatch', {
+        email: normalizedEmail,
+        userId: String(user._id),
+      });
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    authDebugLog('login_password_valid', {
+      email: normalizedEmail,
+      userId: String(user._id),
+      role: user.role,
+      roleRequest: user.roleRequest,
+    });
+
     if (user.role !== 'super_admin' && user.roleRequest === 'pending_session_lead') {
+      authDebugLog('login_blocked_pending_session_lead', {
+        email: normalizedEmail,
+        userId: String(user._id),
+      });
       return res.status(403).json({
         error: 'Your Session Lead request is pending approval. Please wait for Super Admin review.',
         code: 'SESSION_LEAD_PENDING'
@@ -118,6 +145,10 @@ router.post('/login', async (req, res) => {
     }
 
     if (user.role !== 'super_admin' && user.roleRequest === 'rejected') {
+      authDebugLog('login_blocked_rejected_session_lead', {
+        email: normalizedEmail,
+        userId: String(user._id),
+      });
       return res.status(403).json({
         error: 'Your Session Lead request was rejected. Contact admin for more information.',
         code: 'SESSION_LEAD_REJECTED'
@@ -143,6 +174,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
+    authDebugLog('login_exception', { message: error.message });
     res.status(500).json({ error: error.message });
   }
 });
