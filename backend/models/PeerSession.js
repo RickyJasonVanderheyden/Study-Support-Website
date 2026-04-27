@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 
 const peerSessionSchema = new mongoose.Schema(
   {
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Student',
+      required: false,
+      index: true,
+    },
     title: {
       type: String,
       required: [true, 'Session title is required'],
@@ -50,6 +56,19 @@ const peerSessionSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    materialsFiles: {
+      type: [
+        {
+          originalName: { type: String, trim: true, default: '' },
+          fileName: { type: String, trim: true, default: '' },
+          filePath: { type: String, trim: true, default: '' },
+          mimeType: { type: String, trim: true, default: '' },
+          size: { type: Number, default: 0 },
+          uploadedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
     dateTime: {
       type: Date,
       required: [true, 'Session date/time is required'],
@@ -69,8 +88,14 @@ const peerSessionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['upcoming', 'completed', 'cancelled'],
+      enum: ['upcoming', 'completed', 'cancelled', 'pending'],
       default: 'upcoming',
+    },
+    rating: {
+      type: Number,
+      min: 0,
+      max: 5,
+      default: 0,
     },
     difficulty: {
       type: String,

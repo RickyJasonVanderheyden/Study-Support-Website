@@ -17,11 +17,20 @@ const initialSessionForm = {
   hostEmail: '',
   meetingLink: '',
   materialsLink: '',
+  materialsFiles: [],
   dateTime: '',
   durationMinutes: '',
   maxParticipants: '',
   difficulty: 'All Levels',
   tags: '',
+};
+
+const resolveDownloadUrl = (url) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  const apiBase = API.defaults.baseURL || '';
+  const origin = apiBase.replace(/\/api\/?$/, '');
+  return `${origin}${url}`;
 };
 
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : 'N/A');
@@ -35,6 +44,7 @@ const sessionStatus = (s) => {
 
 const StudentSessionCard = ({ session, onOpen }) => {
   const status = sessionStatus(session);
+  const files = Array.isArray(session.materialsFiles) ? session.materialsFiles : [];
   return (
     <Card
       className="space-y-3 h-full bg-white text-slate-800 border border-emerald-100 shadow-sm cursor-pointer hover:border-[#556B2F] hover:shadow-md transition-all rounded-xl"
@@ -70,9 +80,29 @@ const StudentSessionCard = ({ session, onOpen }) => {
           <a className="text-sm text-[#276332] hover:text-[#556B2F] font-semibold underline decoration-2 underline-offset-2" href={session.meetingLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Meeting</a>
         )}
         {session.materialsLink && (
-          <a className="text-sm text-[#276332] hover:text-[#556B2F] font-semibold underline decoration-2 underline-offset-2" href={session.materialsLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Materials</a>
+          <a className="text-sm text-[#276332] hover:text-[#556B2F] font-semibold underline decoration-2 underline-offset-2" href={session.materialsLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Legacy Materials</a>
         )}
       </div>
+      {files.length > 0 && (
+        <div className="text-xs bg-emerald-50 border border-emerald-100 rounded-lg p-3 space-y-2">
+          <p className="font-bold text-[#276332]">Session files ({files.length})</p>
+          <div className="flex flex-wrap gap-3">
+            {files.slice(0, 2).map((file) => (
+              <a
+                key={file._id || file.fileName}
+                className="text-[#276332] hover:text-[#1e4a25] underline"
+                href={resolveDownloadUrl(file.downloadUrl || file.filePath)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {file.originalName || 'Download file'}
+              </a>
+            ))}
+            {files.length > 2 && <span className="text-slate-500">+{files.length - 2} more</span>}
+          </div>
+        </div>
+      )}
       <p className="text-xs text-slate-400 font-medium pt-1">Click card to view full details</p>
     </Card>
   );
@@ -173,7 +203,7 @@ const SessionLeadCard = ({ session, onOpen, onEdit, onDelete }) => {
   );
 };
 
-const SessionForm = ({ value, errors, onChangeField, onSubmit, loading, editing, onCancel }) => (
+const SessionForm = ({ value, errors, onChangeField, onFileChange, existingFiles = [], onSubmit, loading, editing, onCancel }) => (
   <Card
     title={editing ? 'Edit Session' : 'Create New Session'}
     className="bg-white text-slate-800 border border-emerald-200 shadow-md rounded-xl"
@@ -203,9 +233,32 @@ const SessionForm = ({ value, errors, onChangeField, onSubmit, loading, editing,
         <input className={`w-full rounded-lg ${errors.meetingLink ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-[#276332]'} bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332]`} placeholder="Meeting link (Zoom/Meet)" value={value.meetingLink} onChange={(e) => onChangeField('meetingLink', e.target.value)} required />
         {errors.meetingLink && <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors.meetingLink}</p>}
       </div>
-      <div>
-        <input className={`w-full rounded-lg ${errors.materialsLink ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-[#276332]'} bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#276332]`} placeholder="Materials link" value={value.materialsLink} onChange={(e) => onChangeField('materialsLink', e.target.value)} />
-        {errors.materialsLink && <p className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors.materialsLink}</p>}
+      <div className="md:col-span-2">
+        <label className="block text-sm font-bold text-slate-700 mb-2">Upload session materials (optional)</label>
+        <input
+          type="file"
+          multiple
+          className="w-full rounded-lg border-gray-200 bg-gray-50 text-slate-900 file:mr-3 file:rounded-md file:border-0 file:bg-[#276332] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#1e4a25]"
+          onChange={(e) => onFileChange(Array.from(e.target.files || []))}
+        />
+        <p className="text-xs text-slate-500 mt-1">PDF, DOCX, slides, or other study files. Max 8 files.</p>
+        {value.materialsFiles?.length > 0 && (
+          <p className="text-xs text-emerald-700 mt-1 font-semibold">{value.materialsFiles.length} file(s) selected for upload.</p>
+        )}
+        {editing && existingFiles.length > 0 && (
+          <div className="mt-2 text-xs text-slate-600">
+            <p className="font-semibold mb-1">Already uploaded:</p>
+            <ul className="space-y-1">
+              {existingFiles.map((file) => (
+                <li key={file._id || file.fileName}>
+                  <a className="underline text-[#276332]" href={resolveDownloadUrl(file.downloadUrl || file.filePath)} target="_blank" rel="noreferrer">
+                    {file.originalName || file.fileName}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       <div>
         <input className={`w-full rounded-lg ${errors.dateTime ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-[#276332]'} bg-gray-50 text-slate-900 focus:border-[#276332]`} type="datetime-local" value={value.dateTime} onChange={(e) => onChangeField('dateTime', e.target.value)} required />
@@ -252,6 +305,7 @@ const Module3Page = () => {
   const [creating, setCreating] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState('');
   const [sessionForm, setSessionForm] = useState(initialSessionForm);
+  const [editingExistingFiles, setEditingExistingFiles] = useState([]);
   const [formErrors, setFormErrors] = useState({});
   const [userRole, setUserRole] = useState('student');
   const [userEmail, setUserEmail] = useState('');
@@ -350,12 +404,14 @@ const Module3Page = () => {
       hostEmail: session.hostEmail,
       meetingLink: session.meetingLink,
       materialsLink: session.materialsLink,
+      materialsFiles: [],
       dateTime: session.dateTime ? new Date(session.dateTime).toISOString().slice(0, 16) : '',
       durationMinutes: session.durationMinutes,
       maxParticipants: session.maxParticipants,
       difficulty: session.difficulty || 'All Levels',
       tags: session.tags ? session.tags.join(', ') : '',
     });
+    setEditingExistingFiles(Array.isArray(session.materialsFiles) ? session.materialsFiles : []);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -388,7 +444,6 @@ const Module3Page = () => {
         else if (valString && valString.length < 2) errorMsg = 'Host name must be strictly at least 2 characters.';
         break;
       case 'meetingLink':
-      case 'materialsLink':
         if (valString && !/^https?:\/\//i.test(valString)) errorMsg = 'Must be a valid URL starting with http:// or https://';
         break;
       case 'dateTime':
@@ -414,9 +469,14 @@ const Module3Page = () => {
     validateSessionField(name, value);
   };
 
+  const handleMaterialsFileChange = (files) => {
+    setSessionForm((prev) => ({ ...prev, materialsFiles: files }));
+  };
+
   const cancelEdit = () => {
     setEditingSessionId('');
     setSessionForm(initialSessionForm);
+    setEditingExistingFiles([]);
     setFormErrors({});
   };
 
@@ -433,7 +493,7 @@ const Module3Page = () => {
         if (name === 'moduleCode' && !/^[A-Za-z0-9\s-]{2,15}$/.test(v)) msg = 'Invalid module code format.';
         if (name === 'hostName' && /\d/.test(v)) msg = 'Host name cannot contain numbers.';
         else if (name === 'hostName' && v.length < 2) msg = 'Host name must be at least 2 characters.';
-        if ((name === 'meetingLink' || name === 'materialsLink') && v && !/^https?:\/\//i.test(v)) msg = 'Must be a valid URL (http/https).';
+        if (name === 'meetingLink' && v && !/^https?:\/\//i.test(v)) msg = 'Must be a valid URL (http/https).';
         if (name === 'dateTime' && new Date(value) < new Date()) msg = 'Session date cannot be in the past.';
         if (name === 'durationMinutes' && (Number(value) < 15 || Number(value) > 600)) msg = 'Duration must be 15-600 minutes.';
         if (name === 'maxParticipants' && (Number(value) < 1 || Number(value) > 500)) msg = 'Must be between 1 and 500 seats.';
@@ -448,20 +508,22 @@ const Module3Page = () => {
 
     setCreating(true);
 
-    // Bypass stale backend schema for viva by injecting a placeholder
-    const finalForm = { ...sessionForm };
-    if (!finalForm.materialsLink || finalForm.materialsLink.trim() === '') {
-      finalForm.materialsLink = 'https://materials.pending.com';
-    }
-    
+    const formData = new FormData();
+    Object.entries(sessionForm).forEach(([key, value]) => {
+      if (key === 'materialsFiles') return;
+      formData.append(key, value ?? '');
+    });
+    (sessionForm.materialsFiles || []).forEach((file) => {
+      formData.append('materialsFiles', file);
+    });
 
 
     try {
       if (editingSessionId) {
-        await API.patch(`/module3/sessions/${editingSessionId}`, finalForm);
+        await API.patch(`/module3/sessions/${editingSessionId}`, formData);
         toast.success('Session updated');
       } else {
-        await API.post('/module3/sessions', finalForm);
+        await API.post('/module3/sessions', formData);
         toast.success('Session created');
       }
       cancelEdit();
@@ -558,6 +620,8 @@ const Module3Page = () => {
             value={sessionForm}
             errors={formErrors}
             onChangeField={handleSessionFieldChange}
+            onFileChange={handleMaterialsFileChange}
+            existingFiles={editingExistingFiles}
             onSubmit={handleCreateSession}
             loading={creating}
             editing={Boolean(editingSessionId)}

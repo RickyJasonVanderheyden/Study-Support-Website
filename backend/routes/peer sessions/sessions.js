@@ -1,12 +1,81 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const PeerSession = require('../../models/PeerSession');
 const SessionBooking = require('../../models/SessionBooking');
 const SessionRating = require('../../models/SessionRating');
 
-const toCardPayload = (session, bookingCount, ratingSummary, recentRatings = []) => ({
-  ...session.toObject(),
+const uploadDir = path.join(process.cwd(), 'uploads', 'session-materials');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || '');
+    const base = path
+      .basename(file.originalname || 'material', ext)
+      .replace(/[^a-zA-Z0-9-_]/g, '_')
+      .slice(0, 60);
+    cb(null, `${Date.now()}_${base}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 15 * 1024 * 1024, files: 8 },
+});
+
+const normalizeTags = (value) => {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const toStoredFiles = (files = []) =>
+  files.map((file) => ({
+    originalName: file.originalname || '',
+    fileName: file.filename || '',
+    filePath: `/uploads/session-materials/${file.filename}`,
+    mimeType: file.mimetype || '',
+    size: Number(file.size || 0),
+    uploadedAt: new Date(),
+  }));
+
+const withMaterialUrls = (session, req) => {
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const value = session && typeof session.toObject === 'function' ? session.toObject() : { ...(session || {}) };
+  const files = Array.isArray(value.materialsFiles) ? value.materialsFiles : [];
+  value.materialsFiles = files.map((file) => ({
+    ...file,
+    downloadUrl: file.filePath ? `${origin}${file.filePath}` : '',
+  }));
+  return value;
+};
+
+const deleteStoredFiles = (files = []) => {
+  files.forEach((file) => {
+    const fileName = file?.fileName || path.basename(file?.filePath || '');
+    if (!fileName) return;
+    const diskPath = path.join(uploadDir, fileName);
+    if (fs.existsSync(diskPath)) {
+      try {
+        fs.unlinkSync(diskPath);
+      } catch (_error) {
+        // Ignore cleanup failure.
+      }
+    }
+  });
+};
+
+const toCardPayload = (session, bookingCount, ratingSummary, recentRatings = [], req) => ({
+  ...withMaterialUrls(session, req),
   bookingCount,
   averageRating: Number((ratingSummary.averageRating || 0).toFixed(2)),
   ratingCount: ratingSummary.ratingCount || 0,
@@ -78,7 +147,8 @@ router.get('/', async (req, res) => {
         session,
         bookingMap.get(String(session._id)) || 0,
         ratingMap.get(String(session._id)) || {},
-        recentMap.get(String(session._id)) || []
+        recentMap.get(String(session._id)) || [],
+        req
       )
     );
 
@@ -109,7 +179,7 @@ router.get('/:id', async (req, res) => {
     const average = total ? ratings.reduce((sum, item) => sum + item.rating, 0) / total : 0;
 
     res.json({
-      ...session.toObject(),
+      ...withMaterialUrls(session, req),
       bookingCount: bookings.length,
       bookings,
       ratings,
@@ -121,43 +191,58 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', upload.array('materialsFiles', 8), async (req, res) => {
   try {
+    const uploadedFiles = toStoredFiles(req.files || []);
     const payload = {
       ...req.body,
       moduleCode: String(req.body.moduleCode || '').toUpperCase(),
       hostEmail: String(req.body.hostEmail || '').toLowerCase(),
+      tags: normalizeTags(req.body.tags),
+      materialsFiles: uploadedFiles,
     };
 
     const session = await PeerSession.create(payload);
-    res.status(201).json(session);
+    res.status(201).json(withMaterialUrls(session, req));
   } catch (error) {
+    deleteStoredFiles(toStoredFiles(req.files || []));
     res.status(400).json({ error: 'Failed to create session', details: error.message });
   }
 });
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', upload.array('materialsFiles', 8), async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid session id' });
     }
 
+    const existing = await PeerSession.findById(id);
+    if (!existing) {
+      deleteStoredFiles(toStoredFiles(req.files || []));
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
     const payload = { ...req.body };
     if (payload.moduleCode) payload.moduleCode = String(payload.moduleCode).toUpperCase();
     if (payload.hostEmail) payload.hostEmail = String(payload.hostEmail).toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(payload, 'tags')) {
+      payload.tags = normalizeTags(payload.tags);
+    }
+
+    const uploadedFiles = toStoredFiles(req.files || []);
+    if (uploadedFiles.length > 0) {
+      payload.materialsFiles = [...(existing.materialsFiles || []), ...uploadedFiles];
+    }
 
     const updated = await PeerSession.findByIdAndUpdate(id, payload, {
       new: true,
       runValidators: true,
     });
 
-    if (!updated) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-
-    res.json(updated);
+    res.json(withMaterialUrls(updated, req));
   } catch (error) {
+    deleteStoredFiles(toStoredFiles(req.files || []));
     res.status(400).json({ error: 'Failed to update session', details: error.message });
   }
 });
@@ -173,6 +258,8 @@ router.delete('/:id', async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ error: 'Session not found' });
     }
+
+    deleteStoredFiles(deleted.materialsFiles || []);
 
     await Promise.all([
       SessionBooking.deleteMany({ sessionId: id }),

@@ -7,7 +7,7 @@ const navItems = [
   { label: 'AI Tools', to: '/module2', icon: Bot },
   { label: 'Peer Sessions', to: '/module3', icon: Users },
   { label: 'Member Search', to: '/module4', icon: Search },
-  { label: 'Dashboard', to: '/module1', icon: LayoutDashboard },
+  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
 ];
 
 const SiteHeader = () => {
@@ -27,7 +27,7 @@ const SiteHeader = () => {
     <header className="sticky top-0 z-40 border-b border-[#D8E8DC] bg-white shadow-sm">
       <div className="mx-auto flex max-w-full items-center justify-between gap-8 px-6 py-3">
         {/* Logo/Brand */}
-        <Link to="/" className="flex items-center gap-2 flex-shrink-0">
+        <Link to="/home" className="flex items-center gap-2 flex-shrink-0">
           <span className="text-lg font-bold text-[#1E4D35]">Learn</span>
           <span className="text-lg font-bold text-[#E8820C]">Loop</span>
         </Link>

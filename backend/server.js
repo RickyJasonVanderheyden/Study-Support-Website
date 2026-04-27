@@ -128,6 +128,9 @@ app.use('/api/module4/members', require('./routes/MemberFinder/members'));
 app.use('/api/module4/invitations', require('./routes/MemberFinder/invitations'));
 app.use('/api/module4/activity', require('./routes/MemberFinder/activity'));
 
+// Student dashboard section routes (new unified endpoints)
+app.use('/api', require('./routes/StudentProgressandDashboard/studentSection'));
+
 // Chatbot route (Smart AI Assistant)
 app.use('/api/chatbot', require('./routes/chatbot'));
 

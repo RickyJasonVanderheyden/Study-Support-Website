@@ -1,192 +1,132 @@
-import { useMemo, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
-import { getSubjectBySlug } from '../data/subjectQuestions'
-import { submitSubjectQuiz } from '../utils/quizAttemptsApi'
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import PageShell from '../components/studentDash/PageShell';
+import QuizQuestionCard from '../components/studentDash/QuizQuestionCard';
+import { getQuizByCategory, submitQuiz } from '../services/studentDashboardApi';
 
-const QUIZ_RESULTS_STORAGE_KEY = 'lms.quizResults'
-const ACTIVE_STUDENT_ID = import.meta.env.VITE_STUDENT_ID || null
+const SubjectQuestionsPage = () => {
+  const navigate = useNavigate();
+  const { categorySlug } = useParams();
+  const [quiz, setQuiz] = useState(null);
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [startedAt, setStartedAt] = useState(Date.now());
 
-function saveQuizResult(result) {
-  try {
-    const raw = localStorage.getItem(QUIZ_RESULTS_STORAGE_KEY)
-    const existingResults = raw ? JSON.parse(raw) : []
-    const filteredResults = Array.isArray(existingResults)
-      ? existingResults.filter((item) => item.subjectSlug !== result.subjectSlug)
-      : []
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const data = await getQuizByCategory(categorySlug);
+        if (mounted) setQuiz(data);
+      } catch {
+        if (mounted) setError('Unable to load quiz questions.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [categorySlug]);
 
-    localStorage.setItem(QUIZ_RESULTS_STORAGE_KEY, JSON.stringify([...filteredResults, result]))
-  } catch {
-    // Ignore storage failures silently so quiz UX still works.
-  }
-}
+  const completed = Object.keys(answers).length;
+  const total = quiz?.questions?.length || 10;
+  const isComplete = completed === total;
 
-function SubjectQuestionsPage() {
-  const { subjectSlug } = useParams()
-  const subject = getSubjectBySlug(subjectSlug)
-  const [answers, setAnswers] = useState({})
-  const [submitted, setSubmitted] = useState(false)
-  const [submitError, setSubmitError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [startedAt, setStartedAt] = useState(() => Date.now())
+  const orderedAnswers = useMemo(() => {
+    if (!quiz?.questions) return [];
+    return quiz.questions.map((_, index) => {
+      return Number.isInteger(answers[index]) ? answers[index] : -1;
+    });
+  }, [answers, quiz]);
 
-  if (!subject) {
-    return <Navigate to="/" replace />
-  }
-
-  const totalQuestions = subject.questions.length
-  const answeredCount = Object.keys(answers).length
-  const isComplete = answeredCount === totalQuestions
-
-  const score = useMemo(
-    () =>
-      subject.questions.reduce((count, question, questionIndex) => {
-        return answers[questionIndex] === question.correctAnswer ? count + 1 : count
-      }, 0),
-    [answers, subject.questions],
-  )
-
-  const handleAnswerChange = (questionIndex, optionIndex) => {
-    if (submitted) {
-      return
-    }
-
-    setAnswers((prev) => ({
-      ...prev,
-      [questionIndex]: optionIndex,
-    }))
-  }
-
-  const handleSubmit = async () => {
-    if (!isComplete) {
-      return
-    }
-
-    setSubmitError('')
-    setIsSubmitting(true)
-
-    const percentage = Math.round((score / totalQuestions) * 100)
-    const normalizedAnswers = Array.from({ length: totalQuestions }, (_, index) => {
-      const value = answers[index]
-      return Number.isInteger(value) ? value : null
-    })
-    const timeTaken = Math.max(1, Math.round((Date.now() - startedAt) / 1000))
-
-    saveQuizResult({
-      subjectSlug: subject.slug,
-      subjectName: subject.name,
-      marks: score,
-      total: totalQuestions,
-      percentage,
-      completedAt: new Date().toISOString(),
-    })
-
+  const onSubmit = async () => {
+    if (!isComplete || submitting) return;
+    setSubmitting(true);
+    setError('');
     try {
-      await submitSubjectQuiz({
-        subjectSlug: subject.slug,
-        answers: normalizedAnswers,
-        userId: ACTIVE_STUDENT_ID,
-        timeTaken,
-      })
-    } catch {
-      setSubmitError('Quiz submitted locally, but database sync failed. Please try again later.')
+      const timeTaken = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+      await submitQuiz(categorySlug, orderedAnswers, timeTaken);
+      navigate('/dashboard');
+    } catch (e) {
+      setError('Failed to submit quiz. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
+  };
 
-    setSubmitted(true)
-    setIsSubmitting(false)
+  if (loading) {
+    return (
+      <PageShell breadcrumb="Subject Questions">
+        <div className="rounded-2xl border border-[#DDE5D8] bg-white p-6 text-sm text-[#7A837A]">Loading quiz...</div>
+      </PageShell>
+    );
   }
 
-  const handleRetake = () => {
-    setAnswers({})
-    setSubmitted(false)
-    setSubmitError('')
-    setIsSubmitting(false)
-    setStartedAt(Date.now())
+  if (!quiz) {
+    return (
+      <PageShell breadcrumb="Subject Questions">
+        <div className="rounded-2xl border border-[#DDE5D8] bg-white p-6 text-sm text-red-600">{error || 'Quiz not found.'}</div>
+      </PageShell>
+    );
   }
 
   return (
-    <div className="subjects-page">
-      <section className="card">
-        <div className="card-header">
-          <h3>{subject.name} - 10 MCQ Questions</h3>
-          <div className="portfolio-header-actions">
-            <Link to="/" className="inline-nav-link">
-              Subject Categories
-            </Link>
-            <Link to="/dashboard" className="inline-nav-link">
-              Dashboard
-            </Link>
+    <PageShell breadcrumb="Subject Questions">
+      <section className="rounded-2xl border border-[#DDE5D8] bg-white p-6 shadow-sm shadow-black/5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-4xl font-black text-[#173B2F]">
+              {quiz.name} - {quiz.questions.length} MCQ Questions
+            </h2>
+            <p className="mt-2 text-sm text-[#7A837A]">
+              Select one answer for each question and submit to see your score out of 10.
+            </p>
+            <span className="mt-3 inline-flex rounded-xl bg-[#EAF1EA] px-4 py-2 text-sm font-bold text-[#173B2F]">
+              Completed: {completed} / {total}
+            </span>
           </div>
-        </div>
-        <p className="section-intro">Select one answer for each question and submit to see your marks out of 10.</p>
-        <div className="quiz-progress">Completed: {answeredCount} / {totalQuestions}</div>
-      </section>
-
-      <section className="card subject-questions-card">
-        <ol className="mcq-list">
-          {subject.questions.map((question, questionIndex) => (
-            <li key={question.question} className="mcq-item">
-              <p className="mcq-question">{question.question}</p>
-              <div className="mcq-options">
-                {question.options.map((option, optionIndex) => {
-                  const isSelected = answers[questionIndex] === optionIndex
-                  const isCorrectOption = question.correctAnswer === optionIndex
-                  const showCorrect = submitted && isCorrectOption
-                  const showIncorrect = submitted && isSelected && !isCorrectOption
-
-                  const optionClassName = [
-                    'mcq-option',
-                    isSelected ? 'selected' : '',
-                    showCorrect ? 'correct' : '',
-                    showIncorrect ? 'incorrect' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')
-
-                  return (
-                    <label key={option} className={optionClassName}>
-                      <input
-                        type="radio"
-                        name={`question-${questionIndex}`}
-                        checked={isSelected}
-                        onChange={() => handleAnswerChange(questionIndex, optionIndex)}
-                        disabled={submitted}
-                      />
-                      <span>{option}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            </li>
-          ))}
-        </ol>
-
-        <div className="quiz-actions">
           <button
             type="button"
-            onClick={handleSubmit}
-            disabled={!isComplete || submitted || isSubmitting}
-            className="quiz-submit-btn"
+            onClick={() => navigate('/subject-categories')}
+            className="rounded-xl bg-[#F2A112] px-4 py-3 text-sm font-bold text-white hover:bg-[#D98C00]"
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
-          </button>
-          <button type="button" onClick={handleRetake} className="quiz-retake-btn">
-            Retake Quiz
+            Subject Categories
           </button>
         </div>
-
-        {submitError && <p className="course-empty">{submitError}</p>}
-
-        {submitted && (
-          <div className="quiz-result">
-            <strong>
-              Your marks: {score} / {totalQuestions}
-            </strong>
-            <span>{score >= 8 ? 'Excellent work!' : score >= 5 ? 'Good effort, keep improving!' : 'Keep practicing to improve your score.'}</span>
-          </div>
-        )}
       </section>
-    </div>
-  )
-}
 
-export default SubjectQuestionsPage
+      <section className="space-y-4">
+        {quiz.questions.map((question, index) => (
+          <QuizQuestionCard
+            key={question.id}
+            question={question}
+            index={index}
+            selectedAnswer={answers[index]}
+            onSelect={(selected) => setAnswers((prev) => ({ ...prev, [index]: selected }))}
+          />
+        ))}
+      </section>
+
+      <section className="rounded-2xl border border-[#DDE5D8] bg-white p-6 shadow-sm shadow-black/5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-[#7A837A]">Please complete all questions before submitting.</p>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={!isComplete || submitting}
+            className="rounded-xl bg-[#F2A112] px-6 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 hover:bg-[#D98C00]"
+          >
+            {submitting ? 'Submitting...' : 'Submit Quiz'}
+          </button>
+        </div>
+        {error ? <p className="mt-3 text-sm font-semibold text-red-600">{error}</p> : null}
+      </section>
+    </PageShell>
+  );
+};
+
+export default SubjectQuestionsPage;

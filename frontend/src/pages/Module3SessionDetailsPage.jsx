@@ -14,9 +14,17 @@ const initialPrepForm = {
   currentLevel: 'Intermediate',
   upcomingExam: '',
 };
+const LEVELS = new Set(['Beginner', 'Intermediate', 'Advanced']);
 
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : 'N/A');
-const stars = (v) => `${'★'.repeat(Math.round(v || 0))}${'☆'.repeat(5 - Math.round(v || 0))}`;
+const stars = (v) => `${'*'.repeat(Math.round(v || 0))}${'-'.repeat(5 - Math.round(v || 0))}`;
+const resolveDownloadUrl = (url) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  const apiBase = API.defaults.baseURL || '';
+  const origin = apiBase.replace(/\/api\/?$/, '');
+  return `${origin}${url}`;
+};
 const escapeHtml = (value) =>
   String(value || '')
     .replaceAll('&', '&amp;')
@@ -24,6 +32,43 @@ const escapeHtml = (value) =>
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+
+const deriveFocusTopicsFromSession = (session) => {
+  if (!session) return '';
+  const pieces = [];
+  if (session.moduleName) pieces.push(session.moduleName);
+  if (session.moduleCode) pieces.push(session.moduleCode);
+  if (session.title) pieces.push(session.title);
+
+  if (session.description) {
+    const topDescriptionBits = String(session.description)
+      .split(/[,.]/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .slice(0, 2);
+    pieces.push(...topDescriptionBits);
+  }
+
+  return [...new Set(pieces)].slice(0, 5).join(', ');
+};
+
+const derivePrepDefaults = (session) => {
+  if (!session) return initialPrepForm;
+
+  const suggestedLevel = LEVELS.has(session.difficulty) ? session.difficulty : 'Intermediate';
+  const focusTopics = deriveFocusTopicsFromSession(session);
+  const learningGoal = `Build confidence in ${session.title || session.moduleName || 'this topic'} and arrive ready to discuss key problems.`;
+  const upcomingExam = session.dateTime
+    ? `Next related session: ${new Date(session.dateTime).toLocaleDateString()}`
+    : '';
+
+  return {
+    focusTopics,
+    learningGoal,
+    currentLevel: suggestedLevel,
+    upcomingExam,
+  };
+};
 
 const prepToPrintableHtml = (prep, sessionTitle) => {
   const revisionGoals = Array.isArray(prep.revisionGoals)
@@ -94,6 +139,7 @@ const Module3SessionDetailsPage = () => {
   const [prepHistoryLoading, setPrepHistoryLoading] = useState(false);
   const [studyPrep, setStudyPrep] = useState(null);
   const [savedPreps, setSavedPreps] = useState([]);
+  const [isPrepAutofilled, setIsPrepAutofilled] = useState(false);
   const [userRole, setUserRole] = useState('student');
   const [userEmail, setUserEmail] = useState('');
   const isLeadViewer = userRole === 'session_lead' || userRole === 'super_admin';
@@ -155,8 +201,20 @@ const Module3SessionDetailsPage = () => {
   }, [fetchDetails]);
 
   useEffect(() => {
+    setPrepForm(initialPrepForm);
+    setIsPrepAutofilled(false);
+    setStudyPrep(null);
+  }, [id]);
+
+  useEffect(() => {
     fetchPrepHistory();
   }, [fetchPrepHistory]);
+
+  useEffect(() => {
+    if (!sessionDetail || isLeadViewer || isPrepAutofilled) return;
+    setPrepForm(derivePrepDefaults(sessionDetail));
+    setIsPrepAutofilled(true);
+  }, [sessionDetail, isLeadViewer, isPrepAutofilled]);
 
   const handleJoinSession = async (event) => {
     event.preventDefault();
@@ -254,8 +312,8 @@ const Module3SessionDetailsPage = () => {
     }
   };
 
-  const handleDownloadPrep = () => {
-    if (!studyPrep) {
+  const handleDownloadPrep = (prepData = studyPrep) => {
+    if (!prepData) {
       toast.error('Generate prep first');
       return;
     }
@@ -266,12 +324,24 @@ const Module3SessionDetailsPage = () => {
       return;
     }
 
-    printWindow.document.write(prepToPrintableHtml(studyPrep, sessionDetail?.title));
+    printWindow.document.write(prepToPrintableHtml(prepData, sessionDetail?.title));
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => {
       printWindow.print();
     }, 250);
+  };
+
+  const handleUseSavedPrep = (item) => {
+    if (!item?.prep) {
+      toast.error('Saved prep data not found');
+      return;
+    }
+    setStudyPrep({
+      ...item.prep,
+      source: item.source || 'fallback',
+    });
+    toast.success('Loaded saved prep');
   };
 
   const handleShareLink = () => {
@@ -417,15 +487,41 @@ const Module3SessionDetailsPage = () => {
                     >
                       Join meeting
                     </a>
-                    <a
-                      className="flex items-center gap-2 bg-slate-600 text-white px-4 py-3 rounded-lg hover:bg-slate-700 transition-colors font-bold text-center"
-                      href={sessionDetail.materialsLink}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View materials
-                    </a>
+                    {sessionDetail.materialsLink && (
+                      <a
+                        className="flex items-center gap-2 bg-slate-600 text-white px-4 py-3 rounded-lg hover:bg-slate-700 transition-colors font-bold text-center"
+                        href={sessionDetail.materialsLink}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Legacy materials link
+                      </a>
+                    )}
                   </div>
+                  {Array.isArray(sessionDetail.materialsFiles) && sessionDetail.materialsFiles.length > 0 ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-bold text-slate-800 mb-2">Session files</p>
+                      <ul className="space-y-2">
+                        {sessionDetail.materialsFiles.map((file) => (
+                          <li key={file._id || file.fileName} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-slate-700 truncate">{file.originalName || file.fileName}</span>
+                            <a
+                              href={resolveDownloadUrl(file.downloadUrl || file.filePath)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="shrink-0 rounded-md bg-[#276332] px-3 py-1.5 text-white font-semibold hover:bg-[#1e4a25]"
+                            >
+                              Download
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                      No uploaded materials yet.
+                    </div>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
@@ -496,8 +592,14 @@ const Module3SessionDetailsPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="rounded-lg border border-teal-100 bg-teal-50/40 p-3">
                       <p className="text-xs font-black text-[#0F766E] uppercase tracking-wide">Step 1</p>
-                      <p className="text-sm font-semibold text-slate-800 mt-1">Enter focus topics</p>
-                      <p className="text-xs text-slate-600 mt-1">Add topics, level, and goal for better prep quality.</p>
+                      <p className="text-sm font-semibold text-slate-800 mt-1">
+                        {isLeadViewer ? 'Enter focus topics' : 'Auto-filled from session details'}
+                      </p>
+                      <p className="text-xs text-slate-600 mt-1">
+                        {isLeadViewer
+                          ? 'Add topics, level, and goal for better prep quality.'
+                          : 'Topics, level, and goal are prefilled. You can still edit them before generating prep.'}
+                      </p>
                     </div>
                     <div className="rounded-lg border border-teal-100 bg-teal-50/40 p-3">
                       <p className="text-xs font-black text-[#0F766E] uppercase tracking-wide">Step 2</p>
@@ -525,8 +627,18 @@ const Module3SessionDetailsPage = () => {
                           className="rounded-lg border-gray-200 bg-gray-50 text-slate-900 placeholder-gray-400 focus:border-[#0F766E] focus:ring-[#0F766E] w-full px-3 py-2"
                           placeholder="Example: pointers, recursion, memory allocation"
                           value={prepForm.focusTopics}
-                          onChange={(e) => setPrepForm({ ...prepForm, focusTopics: e.target.value })}
+                          onChange={(e) => {
+                            if (userRole !== 'student') {
+                              setPrepForm({ ...prepForm, focusTopics: e.target.value });
+                            }
+                          }}
+                          readOnly={userRole === 'student'}
                         />
+                        {userRole === 'student' && (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Focus topics are auto-filled from this session and cannot be edited.
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">Current Level</label>
@@ -569,6 +681,43 @@ const Module3SessionDetailsPage = () => {
                     </Button>
                   </form>
 
+                  <div className="border border-teal-100 rounded-lg p-4 bg-teal-50/40 space-y-3">
+                    <h4 className="text-sm font-bold text-[#0F766E]">Study Buddy Actions</h4>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        type="button"
+                        className="bg-[#0F766E] hover:bg-[#115E59] text-white font-bold py-2 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={handleSavePrep}
+                        disabled={prepSaving || !studyPrep}
+                      >
+                        {prepSaving ? 'Saving...' : isLeadViewer ? 'Save Lead Draft' : 'Save Prep'}
+                      </Button>
+                      <Button
+                        type="button"
+                        className="bg-[#0B5E58] border border-[#0B5E58] text-white hover:bg-[#094742] font-bold py-2 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => handleDownloadPrep()}
+                        disabled={!studyPrep}
+                      >
+                        Download as PDF
+                      </Button>
+                      {isSessionHost && (
+                        <Button
+                          type="button"
+                          className="bg-[#1D4ED8] border border-[#1D4ED8] text-white hover:bg-[#1E40AF] font-bold py-2 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={handlePublishSharedPrep}
+                          disabled={publishingSharedPrep || !studyPrep}
+                        >
+                          {publishingSharedPrep ? 'Publishing...' : 'Publish for attendees'}
+                        </Button>
+                      )}
+                    </div>
+                    {!studyPrep && (
+                      <p className="text-xs text-slate-600">
+                        Generate or load a prep first to enable save, download, and publish actions.
+                      </p>
+                    )}
+                  </div>
+
                   {studyPrep && (
                     <div className="border border-teal-100 rounded-lg p-4 bg-teal-50/40 space-y-4">
                       <div>
@@ -579,34 +728,6 @@ const Module3SessionDetailsPage = () => {
                           </p>
                         )}
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          type="button"
-                          className="bg-[#0F766E] hover:bg-[#115E59] text-white font-bold py-2 px-4"
-                          onClick={handleSavePrep}
-                          disabled={prepSaving}
-                        >
-                          {prepSaving ? 'Saving...' : isLeadViewer ? 'Save Lead Draft' : 'Save Prep'}
-                        </Button>
-                        <Button
-                          type="button"
-                          className="bg-[#0B5E58] border border-[#0B5E58] text-white hover:bg-[#094742] font-bold py-2 px-4"
-                          onClick={handleDownloadPrep}
-                        >
-                          Download as PDF
-                        </Button>
-                        {isSessionHost && (
-                          <Button
-                            type="button"
-                            className="bg-[#1D4ED8] border border-[#1D4ED8] text-white hover:bg-[#1E40AF] font-bold py-2 px-4"
-                            onClick={handlePublishSharedPrep}
-                            disabled={publishingSharedPrep}
-                          >
-                            {publishingSharedPrep ? 'Publishing...' : 'Publish for attendees'}
-                          </Button>
-                        )}
-                      </div>
-
                       {studyPrep.overview && (
                         <div>
                           <p className="text-sm font-semibold text-slate-700 mb-1">Overview</p>
@@ -700,6 +821,24 @@ const Module3SessionDetailsPage = () => {
                             {item.prep?.overview && (
                               <p className="text-sm text-slate-600 mt-2">{item.prep.overview}</p>
                             )}
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-[#0F766E] hover:bg-[#115E59] text-white px-3 py-1.5"
+                                onClick={() => handleUseSavedPrep(item)}
+                              >
+                                Use This Prep
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5"
+                                onClick={() => handleDownloadPrep(item.prep)}
+                              >
+                                Download PDF
+                              </Button>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -912,3 +1051,5 @@ const Module3SessionDetailsPage = () => {
 };
 
 export default Module3SessionDetailsPage;
+
+

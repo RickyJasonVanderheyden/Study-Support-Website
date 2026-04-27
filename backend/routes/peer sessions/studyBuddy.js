@@ -106,6 +106,7 @@ const fallbackPrep = ({ session, focusTopics, learningGoal, currentLevel, upcomi
 };
 
 router.post('/prep', authMiddleware, async (req, res) => {
+  let fallback = null;
   try {
     const { sessionId, learningGoal, upcomingExam } = req.body;
     const focusTopics = normalizeTopics(req.body.focusTopics);
@@ -120,7 +121,7 @@ router.post('/prep', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    const fallback = fallbackPrep({ session, focusTopics, learningGoal, currentLevel, upcomingExam });
+    fallback = fallbackPrep({ session, focusTopics, learningGoal, currentLevel, upcomingExam });
 
     if (!model || typeof model.generateContent !== 'function') {
       return res.json({ ...fallback, source: 'fallback' });
@@ -174,6 +175,13 @@ Keep language practical, no markdown, no extra keys.
       source: 'ai',
     });
   } catch (error) {
+    if (fallback) {
+      return res.json({
+        ...fallback,
+        source: 'fallback',
+        warning: 'AI generation failed. Returned fallback prep instead.',
+      });
+    }
     return res.status(500).json({
       error: 'Failed to generate study prep',
       details: error.message,

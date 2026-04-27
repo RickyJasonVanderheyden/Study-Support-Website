@@ -35,8 +35,8 @@
   },
   "eslintConfig": {
     "extends": [
-      "react-app",
-      "react-app/jest"
+      "./node_modules/react-scripts/node_modules/eslint-config-react-app",
+      "./node_modules/react-scripts/node_modules/eslint-config-react-app/jest"
     ]
   },
   "browserslist": {

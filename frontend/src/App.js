@@ -16,6 +16,12 @@ import Module4Page from './pages/Module4Page';
 import GroupDetail from './pages/GroupDetail';
 import AdminPanel from './pages/AdminPanel';
 import Profile from './pages/Profile';
+import DashboardPage from './pages/DashboardPage';
+import SubjectCategoriesPage from './pages/SubjectCategoriesPage';
+import SubjectQuestionsPage from './pages/SubjectQuestionsPage';
+import PortfolioPage from './pages/PortfolioPage';
+import PerformanceAnalyticsPage from './pages/PerformanceAnalyticsPage';
+import StudyTimeTrackerPage from './pages/StudyTimeTrackerPage';
 import QuizTake from './components/quizpdfs/QuizTake';
 import QuizResults from './components/quizpdfs/QuizResults';
 import FlashcardStudy from './components/quizpdfs/FlashcardStudy';
@@ -152,6 +158,12 @@ function App() {
           <Route path="/module3/session/:id" element={<AuthenticatedLayout><Module3SessionDetailsPage /></AuthenticatedLayout>} />
           <Route path="/module4" element={<AuthenticatedLayout><Module4Page /></AuthenticatedLayout>} />
           <Route path="/module4/group/:id" element={<AuthenticatedLayout><GroupDetail /></AuthenticatedLayout>} />
+          <Route path="/dashboard" element={<AuthenticatedLayout><DashboardPage /></AuthenticatedLayout>} />
+          <Route path="/subject-categories" element={<AuthenticatedLayout><SubjectCategoriesPage /></AuthenticatedLayout>} />
+          <Route path="/subject-quiz/:categorySlug" element={<AuthenticatedLayout><SubjectQuestionsPage /></AuthenticatedLayout>} />
+          <Route path="/portfolio" element={<AuthenticatedLayout><PortfolioPage /></AuthenticatedLayout>} />
+          <Route path="/performance-analytics" element={<AuthenticatedLayout><PerformanceAnalyticsPage /></AuthenticatedLayout>} />
+          <Route path="/study-time-tracker" element={<AuthenticatedLayout><StudyTimeTrackerPage /></AuthenticatedLayout>} />
           <Route path="/profile" element={<AuthenticatedLayout><Profile /></AuthenticatedLayout>} />
           <Route path="/admin" element={<AdminOnlyRoute><AuthenticatedLayout><AdminPanel /></AuthenticatedLayout></AdminOnlyRoute>} />
         </Routes>

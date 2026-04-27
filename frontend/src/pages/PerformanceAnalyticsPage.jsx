@@ -1,174 +1,80 @@
-import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import HeroSection from '../components/studentDash/HeroSection';
+import PageShell from '../components/studentDash/PageShell';
+import QuickActions from '../components/studentDash/QuickActions';
+import { getPerformanceAnalytics } from '../services/studentDashboardApi';
 
-const QUIZ_RESULTS_STORAGE_KEY = 'lms.quizResults'
+const PerformanceAnalyticsPage = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
 
-function getStoredQuizResults() {
-  try {
-    const raw = localStorage.getItem(QUIZ_RESULTS_STORAGE_KEY)
-    const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function PerformanceAnalyticsPage() {
-  const results = getStoredQuizResults()
-
-  const stats = useMemo(() => {
-    if (results.length === 0) {
-      return {
-        avgPercentage: 0,
-        totalAttempts: 0,
-        highestScore: 0,
-        lowestScore: 0,
-        improvementRate: 0,
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const response = await getPerformanceAnalytics();
+        if (mounted) setData(response);
+      } catch {
+        if (mounted) setData(null);
+      } finally {
+        if (mounted) setLoading(false);
       }
-    }
-
-    const percentages = results.map((r) => r.percentage)
-    const avgPercentage = Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length)
-    const highestScore = Math.max(...percentages)
-    const lowestScore = Math.min(...percentages)
-    const totalAttempts = results.length
-
-    const improvementRate = results.length >= 2
-      ? Math.round(((results[0].percentage - results[results.length - 1].percentage) / results[results.length - 1].percentage) * 100)
-      : 0
-
-    return {
-      avgPercentage,
-      totalAttempts,
-      highestScore,
-      lowestScore,
-      improvementRate,
-    }
-  }, [results])
-
-  const performanceRating = useMemo(() => {
-    if (stats.avgPercentage >= 85) return { label: 'Excellent', color: '#1f5f3b' }
-    if (stats.avgPercentage >= 70) return { label: 'Good', color: '#d4a030' }
-    if (stats.avgPercentage >= 50) return { label: 'Average', color: '#d18210' }
-    return { label: 'Needs Improvement', color: '#cd5c5c' }
-  }, [stats.avgPercentage])
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
-    <div className="content-grid">
-      <section className="card">
-        <div className="card-header">
-          <h3>Performance Analytics</h3>
-          <Link to="/dashboard" className="inline-nav-link">
-            Back to Dashboard
-          </Link>
-        </div>
-        <p className="section-intro">Track your quiz performance metrics and overall progress trends.</p>
-      </section>
+    <PageShell breadcrumb="Performance Analytics">
+      {loading ? (
+        <div className="rounded-2xl border border-[#DDE5D8] bg-white p-6 text-sm text-[#7A837A]">Loading analytics...</div>
+      ) : (
+        <>
+          <HeroSection
+            title="Performance Analytics"
+            subtitle="Quiz patterns, subject strength, and score trends."
+            color="green"
+            tabs={[
+              { label: 'Dashboard', active: false, onClick: () => navigate('/dashboard') },
+              { label: 'Portfolio', active: false, onClick: () => navigate('/portfolio') },
+            ]}
+            stats={[
+              { label: 'Average score', value: `${data?.stats?.averageScore || 0}%` },
+              { label: 'Best score', value: `${data?.stats?.bestScore || 0}%` },
+              { label: 'Attempts', value: String(data?.stats?.attempts || 0) },
+              { label: 'Streak', value: `${data?.stats?.streak || 0}d` },
+            ]}
+            className="mb-0"
+          />
 
-      <section className="card">
-        <div className="stat-grid">
-          <div className="stat-card">
-            <span>Average Score</span>
-            <strong style={{ color: performanceRating.color }}>{stats.avgPercentage}%</strong>
-            <small>{performanceRating.label}</small>
-          </div>
-          <div className="stat-card">
-            <span>Total Attempts</span>
-            <strong>{stats.totalAttempts}</strong>
-            <small>Quizzes completed</small>
-          </div>
-          <div className="stat-card">
-            <span>Highest Score</span>
-            <strong>{stats.highestScore}%</strong>
-            <small>Best performance</small>
-          </div>
-          <div className="stat-card">
-            <span>Lowest Score</span>
-            <strong>{stats.lowestScore}%</strong>
-            <small>Room to improve</small>
-          </div>
-        </div>
-      </section>
-
-      <section className="card">
-        <div className="card-header">
-          <h3>Subject-wise Performance</h3>
-          <span>All attempts</span>
-        </div>
-        <div className="performance-table">
-          {results.length > 0 ? (
-            <table>
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Score</th>
-                  <th>Percentage</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((result, idx) => (
-                  <tr key={idx}>
-                    <td>{result.subjectName}</td>
-                    <td>
-                      {result.marks}/{result.total}
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: '999px',
-                          backgroundColor: result.percentage >= 70 ? '#e8f4ea' : '#fff4e2',
-                          color: result.percentage >= 70 ? '#1f5f3b' : '#b98519',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                        }}
-                      >
-                        {result.percentage}%
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '12px', color: '#7f97b4' }}>
-                      {new Date(result.completedAt).toLocaleDateString()}
-                    </td>
-                  </tr>
+          <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+            <section className="rounded-2xl border border-[#DDE5D8] bg-white p-5 shadow-sm shadow-black/5">
+              <h3 className="text-4xl font-black text-[#173B2F]">Performance Analytics Overview</h3>
+              <p className="mt-2 text-sm text-[#7A837A]">Quiz patterns, strengths, and momentum summary.</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {(data?.overview || []).map((text) => (
+                  <div key={text} className="rounded-xl border border-[#DDE5D8] bg-[#F5F9F3] p-3 text-sm text-[#7A837A]">
+                    {text}
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          ) : (
-            <p style={{ color: '#6b7f9a', fontSize: '13px', margin: '10px 0' }}>
-              No quiz attempts yet. Start a subject quiz to see your performance data.
-            </p>
-          )}
-        </div>
-      </section>
+              </div>
+            </section>
+            <QuickActions
+              items={[
+                { label: 'Back to Dashboard', to: '/dashboard', primary: true },
+                { label: 'View Portfolio', to: '/portfolio' },
+                { label: 'Open Peer Sessions', to: '/module3' },
+              ]}
+            />
+          </div>
+        </>
+      )}
+    </PageShell>
+  );
+};
 
-      <section className="card insights-wide-card">
-        <div className="card-header">
-          <h3>Insights & Recommendations</h3>
-          <span>AI-generated</span>
-        </div>
-        <ul className="insight-list">
-          {stats.avgPercentage >= 85 ? (
-            <>
-              <li>Excellent! You're performing consistently above 85%. Keep up the momentum!</li>
-              <li>Consider challenging yourself with advanced topics or peer mentoring.</li>
-            </>
-          ) : stats.avgPercentage >= 70 ? (
-            <>
-              <li>Good progress! Your average is solid. Focus on the lower-scoring subjects.</li>
-              <li>Review quiz questions where you made mistakes to strengthen weak areas.</li>
-            </>
-          ) : (
-            <>
-              <li>You have potential! Increase study frequency and focus on fundamentals.</li>
-              <li>Spend more time on challenging topics before attempting quizzes.</li>
-            </>
-          )}
-          <li>Track your time spent per subject to optimize your study schedule.</li>
-        </ul>
-      </section>
-    </div>
-  )
-}
-
-export default PerformanceAnalyticsPage
+export default PerformanceAnalyticsPage;
