@@ -1,6 +1,4 @@
 # Environment variables
-.env
-.env.local
 .env.*.local
 
 # Dependencies
@@ -14,7 +12,6 @@ build/
 *.tgz
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -30,3 +27,4 @@ logs/
 
 # Uploads
 backend/uploads/
+config.bat
